@@ -1,10 +1,11 @@
-
+@Library ('folio_jenkins_shared_libs@FOLIO-2267') _
 
 buildMvn {
   publishModDescriptor = 'yes'
   publishAPI = 'yes'
   mvnDeploy = 'yes'
   runLintRamlCop = 'yes'
+  publishPreview = 'yes'
 
   doDocker = {
     buildJavaDocker {
