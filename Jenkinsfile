@@ -1,4 +1,4 @@
-
+@Library ('folio_jenkins_shared_libs@folio-1447-lint-raml-extra-message') _
 
 buildMvn {
   publishModDescriptor = 'yes'
