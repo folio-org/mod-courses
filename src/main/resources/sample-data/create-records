@@ -14,8 +14,8 @@ for dir in `echo '
     departments
     processingstatuses
     copyrightstatuses
-    # TODO: courselisting
-    # TODO: course
+    courselistings
+    courses
     # TODO: reserve
     # TODO (subobject of course): instructor
     # SUPERSEDED BY TERM: schedule
