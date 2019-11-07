@@ -18,8 +18,6 @@ for dir in `echo '
     courses
     instructors
     # TODO: reserve
-    # SUPERSEDED BY TERM: schedule
-    # NOT INCLUDED: section
 ' | grep -v '^[ ]*#'`;
     do
     echo "Adding records of type $dir"
