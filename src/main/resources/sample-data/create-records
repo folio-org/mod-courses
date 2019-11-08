@@ -22,10 +22,10 @@ for dir in `echo '
     do
     echo "Adding records of type $dir"
     cd $dir
-        case $dir in
+	case $dir in
 	    *) path=${dir};;
-        esac
-        for file in *; do
+	esac
+	for file in *; do
 	    echo
 	    echo "  Adding $dir '$file' at /$path"
 	    if [ $dir = instructors ]; then
