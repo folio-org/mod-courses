@@ -26,6 +26,7 @@ for dir in `echo '
 	    *) path=${dir};;
         esac
         for file in *; do
+	    echo
 	    echo "  Adding $dir '$file' at /$path"
 	    if [ $dir = instructors ]; then
 		clid=`sed -n 's/^  "courseListingId": "\(.*\)",*/\1/p	' $file`
