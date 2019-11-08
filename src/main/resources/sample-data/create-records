@@ -27,9 +27,11 @@ for dir in `echo '
         esac
         for file in *; do
 	    echo "  Adding $dir '$file' at /$path"
-	    clid=`sed -n 's/^  "courseListingId": "\(.*\)",*/\1/p	' $file`
-	    if [ "x$clid" != x ]; then
-	        path=courselistings/$clid/${path}
+	    if [ $dir = instructors ]; then
+		clid=`sed -n 's/^  "courseListingId": "\(.*\)",*/\1/p	' $file`
+		if [ "x$clid" != x ]; then
+		    path=courselistings/$clid/${path}
+		fi
 	    fi
 	    curl \
 		-X POST \
