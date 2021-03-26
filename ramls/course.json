@@ -47,7 +47,7 @@
         },
         "numberOfStudents": {
             "type": "integer",
-            "description": "The number of students enrolled in this listing"
+            "description": "The number of students enrolled in this course"
         },
         "metadata": {
             "type": "object",
