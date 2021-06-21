@@ -163,6 +163,7 @@ public class TestUtil {
       String payload, String uri, HttpMethod method, Integer expectedCode, String explanation) {
     Promise<WrappedResponse> promise = Promise.promise();
     Future<HttpResponse<Buffer>> sentRequestFuture;
+    final String explainString = (explanation != null) ? explanation : "(no explanation)";
 
     if( method == HttpMethod.PUT || method == HttpMethod.POST ) {
       sentRequestFuture = request.sendBuffer(Buffer.buffer(payload));
@@ -171,12 +172,12 @@ public class TestUtil {
     }
     sentRequestFuture.onComplete(res -> {
       if(res.failed()) {
+        logger.error("Error in wrapRequestResponse: " + res.cause().getLocalizedMessage());
         promise.fail(res.cause());
       } else {
         try {
           HttpResponse<Buffer> result = res.result();
           String responseString = result.bodyAsString();
-          String explainString = (explanation != null) ? explanation : "(no explanation)";
           if(expectedCode != null && expectedCode != result.statusCode()) {
             String message = method.toString() + " to " + uri
                   + " failed. Expected status code "
@@ -192,13 +193,14 @@ public class TestUtil {
             promise.complete(wr);
           }
         } catch(Exception e) {
+          logger.error("Error getting WrappedResponse: " + e.getLocalizedMessage());
           promise.fail(e);
         }
       }
     });
     
     logger.info("Sending " + method.toString() + " request to url '"+
-              uri + " with payload: " + payload + "'\n");
+              uri + " [" + explainString + "] with payload: " + payload + "'\n");
 
     return promise.future();
 
