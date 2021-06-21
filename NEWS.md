@@ -1,3 +1,6 @@
+##1.3.0 2021-06-21
+* Increment minor version
+
 ## 1.2.3 2021-06-19
 * Correct issue with temporaryLocationId removal (MODCR-58)
 * Update interface versions for inventory (MODCR-59)
