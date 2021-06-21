@@ -1016,7 +1016,7 @@ public class CourseAPITest {
             .put("barcode", OkapiMock.barcode7));  // this triggers item PUT failure
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
         "/reserves", POST, standardHeaders, reservePostJson.encode(), 500,
-        "Post Course Reserve")
+        "Post Course Reserve with Bad Barcode")
     .onComplete(context.asyncAssertSuccess(wrappedResponse -> {
       assertThat(wrappedResponse.getBody(), containsString("We've mocked barcode 0 to fail on PUT"));
     }));
