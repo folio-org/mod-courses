@@ -219,6 +219,7 @@ public class CRUtil {
     copiedItem.setEnumeration(itemJson.getString("enumeration"));
     copiedItem.setInstanceId(instanceJson.getString("id"));
     copiedItem.setInstanceHrid(instanceJson.getString("hrid"));
+    copiedItem.setInstanceDiscoverySuppress(instanceJson.getBoolean("discoverySuppress", false));
     copiedItem.setHoldingsId(holdingsJson.getString("id"));
     try {
       if (itemJson.containsKey("copyNumber")) {

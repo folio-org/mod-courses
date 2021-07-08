@@ -41,6 +41,7 @@ public class OkapiMock extends AbstractVerticle {
   public static String holdings2Id = UUID.randomUUID().toString();
   public static String instance1Id = UUID.randomUUID().toString();
   public static String instance1Hrid = "inst000000000006";
+  public static Boolean instance1DiscoverySuppress = true;
   public static String barcode1 = "326547658598";
   public static String barcode2 = "539311253355";
   public static String barcode3 = "794630622287";
@@ -659,6 +660,7 @@ public class OkapiMock extends AbstractVerticle {
     instanceMap.put(instance1Id, new JsonObject()
       .put("id", instance1Id)
       .put("hrid", instance1Hrid)
+      .put("discoverySuppress", instance1DiscoverySuppress)
       .put("title", title1)
       .put("contributors", new JsonArray()
         .add(new JsonObject()

@@ -674,6 +674,7 @@ public class CourseAPITest {
                 JsonObject getCopiedItemJson = getReserveJson.getJsonObject("copiedItem");
                 context.assertEquals(getCopiedItemJson.getString("instanceId"), OkapiMock.instance1Id);
                 context.assertEquals(getCopiedItemJson.getString("instanceHrid"), OkapiMock.instance1Hrid);
+                context.assertEquals(getCopiedItemJson.getBoolean("instanceDiscoverySuppress"), OkapiMock.instance1DiscoverySuppress);
                 context.assertEquals(getCopiedItemJson.getString("holdingsId"), OkapiMock.holdings1Id);
                 JsonObject permanentLocationJson = getCopiedItemJson.getJsonObject("permanentLocationObject");
                 JsonObject temporaryLocationJson = getCopiedItemJson.getJsonObject("temporaryLocationObject");
