@@ -1,3 +1,6 @@
+## 1.4.0 2021-07-28
+* Add "discoverySuppress" to copiedItem structure in Reserve
+
 ## 1.3.0 2021-06-26
 * Switch to Testcontainers
 * Cleanup Future composition
