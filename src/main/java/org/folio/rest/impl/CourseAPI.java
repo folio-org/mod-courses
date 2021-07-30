@@ -53,6 +53,7 @@ import org.folio.rest.persist.cql.CQLWrapper;
 import org.folio.rest.persist.interfaces.Results;
 import org.folio.rest.tools.utils.TenantTool;
 import org.folio.rest.tools.utils.ValidationHelper;
+import org.folio.util.StringUtil;
 
 
 public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
@@ -176,22 +177,9 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void deleteCoursereservesCourselistings(Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    try {
-      deleteAllItems(COURSE_LISTINGS_TABLE, null, okapiHeaders, vertxContext).onComplete(res -> {
-        if (res.failed()) {
-          String message = logAndSaveError(res.cause());
-          asyncResultHandler.handle(Future.succeededFuture(
-              DeleteCoursereservesCourselistingsResponse.respond500WithTextPlain(getErrorResponse(message))));
-        } else {
-          asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesCourselistingsResponse.noContent().build()));
-        }
-      });
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(Future.succeededFuture(
-          DeleteCoursereservesCourselistingsResponse.respond500WithTextPlain(getErrorResponse(message))));
-    }
+
+    PgUtil.delete(COURSE_LISTINGS_TABLE, "cql.allRecords=1", okapiHeaders, vertxContext,
+        DeleteCoursereservesCourselistingsResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -234,7 +222,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsCoursesByListingId(String listingId, String query, int offset, int limit,
       String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
-    String courseQueryClause = String.format("courseListingId = %s", listingId);
+    String courseQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
     if (query == null || query.isEmpty()) {
       query = courseQueryClause;
     } else {
@@ -260,27 +248,10 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void deleteCoursereservesCourselistingsCoursesByListingId(String listingId, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    try {
-      String tenantId = getTenant(okapiHeaders);
-      PostgresClient pgClient = getPGClient(vertxContext, tenantId);
-      final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s WHERE jsonb->>'courseListingId' = '%s'",
-          tenantId, "mod_courses", COURSES_TABLE, listingId);
-      logger.info(String.format("Deleting all courses with query %s", DELETE_ALL_QUERY));
-      pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
-        if (mutateReply.failed()) {
-          String message = logAndSaveError(mutateReply.cause());
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCourselistingsCoursesByListingIdResponse
-              .respond500WithTextPlain(getErrorResponse(message))));
-        } else {
-          asyncResultHandler.handle(
-              Future.succeededFuture(DeleteCoursereservesCourselistingsCoursesByListingIdResponse.noContent().build()));
-        }
-      });
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCourselistingsCoursesByListingIdResponse
-          .respond500WithTextPlain(getErrorResponse(message))));
-    }
+
+    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
+    PgUtil.delete(COURSES_TABLE, cql, okapiHeaders, vertxContext,
+        DeleteCoursereservesCourselistingsCoursesByListingIdResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -313,7 +284,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       int limit, String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
     try {
-      String instructorQueryClause = String.format("courseListingId = %s", listingId);
+      String instructorQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
       if (query == null || query.isEmpty()) {
         query = instructorQueryClause;
       } else {
@@ -390,24 +361,10 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void deleteCoursereservesCourselistingsInstructorsByListingId(String listingId,
       Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    try {
-      final String whereClause = "jsonb ->>'courseListingId' = '" + listingId + "'";
-      deleteAllItems(INSTRUCTORS_TABLE, whereClause, okapiHeaders, vertxContext).onComplete(res -> {
-        if (res.failed()) {
-          String message = logAndSaveError(res.cause());
-          asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesCourselistingsInstructorsByListingIdResponse
-                  .respond500WithTextPlain(getErrorResponse(message))));
-        } else {
-          asyncResultHandler.handle(Future
-              .succeededFuture(DeleteCoursereservesCourselistingsInstructorsByListingIdResponse.noContent().build()));
-        }
-      });
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCourselistingsInstructorsByListingIdResponse
-          .respond500WithTextPlain(getErrorResponse(message))));
-    }
+
+    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
+    PgUtil.delete(INSTRUCTORS_TABLE, cql, okapiHeaders, vertxContext,
+        DeleteCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -478,7 +435,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsReservesByListingId(String listingId, String expand, String query,
       int offset, int limit, String lang, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    String courseListingQueryClause = String.format("courseListingId = %s", listingId);
+    String courseListingQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
     if (query == null || query.isEmpty()) {
       query = courseListingQueryClause;
     } else {
@@ -502,27 +459,10 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
 
   public void deleteCoursereservesCourselistingsReservesByListingId(String listingId, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    try {
-      String tenantId = getTenant(okapiHeaders);
-      PostgresClient pgClient = getPGClient(vertxContext, tenantId);
-      final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s WHERE jsonb->>'courseListingId' = '%s'",
-          tenantId, "mod_courses", RESERVES_TABLE, listingId);
-      logger.info(String.format("Deleting all reserves with query %s", DELETE_ALL_QUERY));
-      pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
-        if (mutateReply.failed()) {
-          String message = logAndSaveError(mutateReply.cause());
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCourselistingsReservesByListingIdResponse
-              .respond500WithTextPlain(getErrorResponse(message))));
-        } else {
-          asyncResultHandler.handle(Future
-              .succeededFuture(DeleteCoursereservesCourselistingsReservesByListingIdResponse.noContent().build()));
-        }
-      });
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCourselistingsReservesByListingIdResponse
-          .respond500WithTextPlain(getErrorResponse(message))));
-    }
+
+    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
+    PgUtil.delete(RESERVES_TABLE, cql, okapiHeaders, vertxContext,
+        DeleteCoursereservesCourselistingsReservesByListingIdResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -588,25 +528,9 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void deleteCoursereservesRoles(Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    try {
-      String tenantId = getTenant(okapiHeaders);
-      PostgresClient pgClient = getPGClient(vertxContext, tenantId);
-      final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", ROLES_TABLE);
-      logger.info(String.format("Deleting all roles with query %s", DELETE_ALL_QUERY));
-      pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
-        if (mutateReply.failed()) {
-          String message = logAndSaveError(mutateReply.cause());
-          asyncResultHandler.handle(Future
-              .succeededFuture(DeleteCoursereservesRolesResponse.respond500WithTextPlain(getErrorResponse(message))));
-        } else {
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesRolesResponse.noContent().build()));
-        }
-      });
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(
-          Future.succeededFuture(DeleteCoursereservesRolesResponse.respond500WithTextPlain(getErrorResponse(message))));
-    }
+
+    PgUtil.delete(ROLES_TABLE, "cql.allRecords=1", okapiHeaders, vertxContext,
+        DeleteCoursereservesRolesResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -1136,33 +1060,6 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
     return promise.future();
   }
 
-  public Future<Void> deleteAllItems(String tableName, String whereClause, Map<String, String> okapiHeaders,
-      Context vertxContext) {
-    Promise<Void> promise = Promise.promise();
-    try {
-      PostgresClient pgClient = getPGClientFromHeaders(vertxContext, okapiHeaders);
-      String tenantId = getTenant(okapiHeaders);
-      String deleteAllQuery = null;
-      if (whereClause == null) {
-        deleteAllQuery = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", tableName);
-      } else {
-        deleteAllQuery = String.format("DELETE FROM %s_%s.%s WHERE %s", tenantId, "mod_courses", tableName,
-            whereClause);
-      }
-      pgClient.execute(deleteAllQuery, mutateReply -> {
-        if (mutateReply.failed()) {
-          String message = logAndSaveError(mutateReply.cause());
-          promise.fail(mutateReply.cause());
-        } else {
-          promise.complete();
-        }
-      });
-    } catch (Exception e) {
-      promise.fail(e);
-    }
-    return promise.future();
-  }
-
   public Future<Void> deleteItem(String tableName, String id, Map<String, String> okapiHeaders, Context vertxContext) {
     Promise<Void> promise = Promise.promise();
     PostgresClient pgClient = getPGClientFromHeaders(vertxContext, okapiHeaders);
@@ -1363,7 +1260,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
         final WrapString originalTemporaryLocationId = new WrapString();
         if(entity.getCopiedItem() != null) {
           originalTemporaryLocationId.set(entity.getCopiedItem().getTemporaryLocationId());
-        } 
+        }
 
         logger.info("originalTemporaryLocationId has a value of " + originalTemporaryLocationId.get());
 
@@ -1392,7 +1289,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
             } else {
               itemId = null;
             }
-            if(writeType == WriteType.POST && 
+            if(writeType == WriteType.POST &&
               originalTemporaryLocationId.get() == null && courseListingLocation != null &&
               ( retrievedItemJson == null || retrievedItemJson.getString("temporaryLocationId") == null)) {
               logger.info("Using courseListing location '" + courseListingLocation + "' for reserve temporary location");

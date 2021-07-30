@@ -140,6 +140,9 @@ public class CourseAPITest {
 
   @Before
   public void beforeEach(TestContext context) {
+    // uncaught exception should fail a test
+    vertx.exceptionHandler(context.exceptionHandler());
+
     loadTerm1()
     .compose(f -> loadTerm2())
     .compose(f -> loadCourseType1())
@@ -2038,43 +2041,36 @@ public class CourseAPITest {
      }, vertx.getOrCreateContext());
    }
 
+   private Future<WrappedResponse> assertInstructorsCount(String listingId, int expectedCount) {
+     return TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + listingId + "/instructors", GET,
+         null, null, 200, "get instructors")
+     .onSuccess(wrappedResponse -> assertThat(wrappedResponse.getJson().getInteger("totalRecords"), is(expectedCount)));
+   }
+
    @Test
-   public void testDeleteInstructorsByListingIdFail(TestContext context) {
-     Async async = context.async();
-     new CourseAPIFail().deleteCoursereservesCourselistingsInstructorsByListingId(
-         COURSE_LISTING_1_ID, okapiHeaders,
-         res -> {
-       if(res.failed()) {
-         context.fail(res.cause());
-       } else {
-         if(res.result().getStatus() != 500) {
-           context.fail("Expected 500, got status " + res.result().getStatus());
-           return;
-         }
-         async.complete();
-       }
-     }, vertx.getOrCreateContext());
+   public void testDeleteInstructorsByListingId(TestContext context) {
+     assertInstructorsCount(COURSE_LISTING_1_ID, 2)
+     .compose(x -> deleteCourseListing1Instructors())
+     .compose(x -> assertInstructorsCount(COURSE_LISTING_1_ID, 0))
+     .compose(x -> assertInstructorsCount(COURSE_LISTING_2_ID, 1))
+     .compose(x -> deleteCourseListing2Instructors())
+     .compose(x -> assertInstructorsCount(COURSE_LISTING_2_ID, 0))
+     .onComplete(context.asyncAssertSuccess());
    }
 
    @Test
    public void testDeleteCourselistings(TestContext context) {
-     Async async = context.async();
-     new CourseAPIFail().deleteCoursereservesCourselistings(okapiHeaders,
-         res -> {
-       if(res.failed()) {
-         context.fail(res.cause());
-       } else {
-         if(res.result().getStatus() != 500) {
-           context.fail("Expected 500, got status " + res.result().getStatus());
-           return;
-         }
-         async.complete();
-       }
-     }, vertx.getOrCreateContext());
+     deleteCourseListings()
+     .onComplete(context.asyncAssertFailure())  // fail because of foreign keys
+     .recover(x -> deleteCourseListing1Instructors())
+     .compose(x -> deleteCourseListing2Instructors())
+     .compose(x -> deleteCourses())
+     .compose(x -> deleteCourseListings())
+     .onComplete(context.asyncAssertSuccess());  // success after deleting all foreign keys
    }
 
    @Test
-   public void testDeleteReserveByIdFail(TestContext context) {
+   public void testDeleteReserveById(TestContext context) {
      Async async = context.async();
      new CourseAPIFail().deleteCoursereservesReservesByReserveId("blargh",
          null, okapiHeaders, res -> {

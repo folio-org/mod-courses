@@ -68,6 +68,11 @@ resourceTypes:
             responses:
                 204:
                     description: "All listings deleted"
+                400:
+                    description: "Bad request, e.g. unknown tenant"
+                    body:
+                      text/plain:
+                        example: tenant not found
                 500:
                     description: "Internal server error"
                     body:
@@ -106,6 +111,11 @@ resourceTypes:
                     responses:
                         204:
                             description: "All courses deleted"
+                        400:
+                            description: "Bad request, e.g. malformed listing_id"
+                            body:
+                              text/plain:
+                                example: listing_id is not a UUID
                         500:
                             description: "Internal server error"
                             body:
@@ -146,6 +156,11 @@ resourceTypes:
                     responses:
                         204:
                             description: "All instructors deleted"
+                        400:
+                            description: "Bad request, e.g. malformed listing_id"
+                            body:
+                              text/plain:
+                                example: listing_id is not a UUID
                         500:
                             description: "Internal server error"
                             body:
@@ -189,6 +204,11 @@ resourceTypes:
                     responses:
                         204:
                             description: "All reserves deleted"
+                        400:
+                            description: "Bad request, e.g. malformed listing_id"
+                            body:
+                              text/plain:
+                                example: listing_id is not a UUID
                         500:
                             description: "Internal server error"
                             body:
@@ -228,6 +248,11 @@ resourceTypes:
             responses:
                 204:
                     description: "All roles deleted"
+                400:
+                    description: "Bad request, e.g. unknown tenant"
+                    body:
+                      text/plain:
+                        example: "tenant not found"
                 500:
                     description: "Internal server error"
                     body:

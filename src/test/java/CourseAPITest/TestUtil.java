@@ -6,8 +6,6 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -192,11 +190,11 @@ public class TestUtil {
             promise.complete(wr);
           }
         } catch(Exception e) {
-          promise.fail(e);
+          promise.tryFail(e);
         }
       }
     });
-    
+
     logger.info("Sending " + method.toString() + " request to url '"+
               uri + " with payload: " + payload + "'\n");
 
