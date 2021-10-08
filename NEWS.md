@@ -1,3 +1,6 @@
+## 1.4.1 2021-10-08
+* Close potential CQL injection vulnerabilities (MODCR-66)
+
 ## 1.4.0 2021-07-28
 * Add "discoverySuppress" to copiedItem structure in Reserve
 
