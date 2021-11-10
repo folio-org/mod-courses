@@ -629,10 +629,13 @@ public class CourseAPITest {
     JsonObject reservePostJson = new JsonObject()
         .put("courseListingId", COURSE_LISTING_1_ID)
         .put("itemId", OkapiMock.item1Id)
+        .put("startDate", "2020-01-05")
+        .put("endDate", "2020-02-10T12:30:00Z")
         .put("temporaryLoanTypeId", OkapiMock.loanType1Id)
         .put("processingStatusId", PROCESSING_STATUS_1_ID)
-        .put("copyrightTracking", new JsonObject()
-          .put("copyrightStatusId", COPYRIGHT_STATUS_1_ID));
+        .put("copyrightTracking", new JsonObject()        
+          .put("copyrightStatusId", COPYRIGHT_STATUS_1_ID)
+        );
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
         "/reserves", POST, standardHeaders, reservePostJson.encode(), 201,
         "Post Course Reserve").onComplete(res -> {
@@ -646,25 +649,31 @@ public class CourseAPITest {
           return;
         }
         JsonObject itemJson = reserveJson.getJsonObject("copiedItem");
-        if(! itemJson.getString("barcode").equals(OkapiMock.barcode1)) {
-          context.fail("Expected bardcode " + OkapiMock.barcode1 + " got " +
-              itemJson.getString("barcode"));
-          return;
-        }
-        if(! itemJson.getString("title").equals(OkapiMock.title1)) {
-          context.fail("Expected title" + OkapiMock.title1 + " got " +
-              itemJson.getString("title"));
-          return;
-        }
-        if(! itemJson.getString("temporaryLocationId").equals(OkapiMock.location2Id)) {
-          context.fail("Expected temporaryLocationId" + OkapiMock.location2Id + " got " +
-              itemJson.getString("temporaryLocationId"));
-          return;
-        }
-        if(itemJson.getString("copy") == null || ! itemJson.getString("copy").equals(OkapiMock.copy1)) {
-          context.fail("Expected copy " + OkapiMock.copy1 + " got " +
-              itemJson.getString("copy"));
-          return;
+        try {
+          context.assertEquals(reserveJson.getString("startDate"), "2020-01-05T00:00:00Z");
+          context.assertEquals(reserveJson.getString("endDate"), "2020-02-10T12:30:00Z");
+          if(! itemJson.getString("barcode").equals(OkapiMock.barcode1)) {
+            context.fail("Expected bardcode " + OkapiMock.barcode1 + " got " +
+                itemJson.getString("barcode"));
+            return;
+          }
+          if(! itemJson.getString("title").equals(OkapiMock.title1)) {
+            context.fail("Expected title" + OkapiMock.title1 + " got " +
+                itemJson.getString("title"));
+            return;
+          }
+          if(! itemJson.getString("temporaryLocationId").equals(OkapiMock.location2Id)) {
+            context.fail("Expected temporaryLocationId" + OkapiMock.location2Id + " got " +
+                itemJson.getString("temporaryLocationId"));
+            return;
+          }
+          if(itemJson.getString("copy") == null || ! itemJson.getString("copy").equals(OkapiMock.copy1)) {
+            context.fail("Expected copy " + OkapiMock.copy1 + " got " +
+                itemJson.getString("copy"));
+            return;
+          }
+        } catch(Exception e) {
+          context.fail(e);
         }
 
         TestUtil.doRequest(vertx, baseUrl + "/courselistings/" +

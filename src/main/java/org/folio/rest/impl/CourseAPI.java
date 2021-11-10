@@ -1313,7 +1313,13 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
                           .createValidationErrorMessage("itemId", itemId, message))));
               } else {
                 try {
-                  Future<Void> putFuture;
+                  if(entity.getStartDate() != null) {
+                    entity.setStartDate(CRUtil.UTCFromLocalDate(entity.getStartDate()));
+                  }
+                  if(entity.getEndDate() != null) {
+                    entity.setEndDate(CRUtil.UTCFromLocalDate(entity.getEndDate()));
+                  }
+                  Future<Void> putInventoryFuture;
                   //Should we issue a PUT to inventory if it's a POST request?
                   //if((finalOriginalTemporaryLocationId != null || entity.getTemporaryLoanTypeId() != null)
                   //    && getCopiedItemsFuture.succeeded()) {
@@ -1325,11 +1331,11 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
                     if(entity.getTemporaryLoanTypeId() != null) {
                       itemJson.put("temporaryLoanTypeId", entity.getTemporaryLoanTypeId());
                     }
-                    putFuture = CRUtil.putItemUpdate(itemJson, okapiHeaders, vertxContext);
+                    putInventoryFuture = CRUtil.putItemUpdate(itemJson, okapiHeaders, vertxContext);
                   } else {
-                    putFuture = Future.succeededFuture();
+                    putInventoryFuture = Future.succeededFuture();
                   }
-                  putFuture.<Void>map(x -> {
+                  putInventoryFuture.<Void>map(x -> {
                     //We need to set the temporary location if it exists
                     //if(finalOriginalTemporaryLocationId != null && entity.getCopiedItem() != null) {
                     if(entity.getCopiedItem() != null) {

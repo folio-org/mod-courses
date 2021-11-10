@@ -1213,6 +1213,17 @@ public class CRUtil {
     }
     return prefix + number + suffix;
   }
+
+  /* If the date string is just a 'local' date then convert it to UTC */
+  public static String UTCFromLocalDate(String localDate) {
+    Pattern pattern = Pattern.compile("^\\d\\d\\d\\d-\\d\\d-\\d\\d$");
+    Matcher matcher = pattern.matcher(localDate);
+    if(matcher.matches()) {
+      return localDate + "T00:00:00Z";
+    } else {
+      return localDate;
+    }    
+  }
 }
 
 
