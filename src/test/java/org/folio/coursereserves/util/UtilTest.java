@@ -102,4 +102,17 @@ public class UtilTest {
     String callNumberBad = CRUtil.makeCallNumber("G", null, "PIG");
     assertNull(callNumberBad);
   }
+
+
+  @Test public void testExpandLocaldate() {
+    String localDate = "2001-01-01";
+    String expandDate = CRUtil.UTCFromLocalDate(localDate);
+    assertEquals(expandDate, "2001-01-01T00:00:00Z");
+  }
+
+  @Test public void testExpandNonLocaldate() {
+    String localDate = "2001-01-01T13:10:11";
+    String expandDate = CRUtil.UTCFromLocalDate(localDate);
+    assertEquals(expandDate, localDate);
+  }
 }
