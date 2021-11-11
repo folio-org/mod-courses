@@ -1,3 +1,6 @@
+## 1.4.2 2021-11-11
+* Expand local date strings in Reserves into full UTC date strings (UICR-145)
+
 ## 1.4.1 2021-10-08
 * Close potential CQL injection vulnerabilities (MODCR-66)
 
