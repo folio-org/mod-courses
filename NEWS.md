@@ -1,3 +1,6 @@
+## 1.4.3 2021-12-17
+* Update to RMB 32.2.4 to address log4j vulnerability (MODCR-73)
+
 ## 1.4.2 2021-11-11
 * Expand local date strings in Reserves into full UTC date strings (UICR-145)
 
