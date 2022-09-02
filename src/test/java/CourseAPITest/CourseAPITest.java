@@ -29,10 +29,11 @@ import io.vertx.ext.web.client.WebClient;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import org.apache.commons.collections4.map.CaseInsensitiveMap;
 import org.folio.coursereserves.util.CRUtil;
 import org.folio.postgres.testing.PostgresTesterContainer;
 import org.folio.rest.RestVerticle;
@@ -92,7 +93,7 @@ public class CourseAPITest {
   public final static String EXTERNAL_ID_2 = "0002";
   public final static String EXTERNAL_ID_3 = "0003";
   public final static Integer COURSE_1_NUM_STUDENTS = 42;
-  public static Map<String, String> okapiHeaders = new HashMap<>();
+  public static Map<String, String> okapiHeaders = new CaseInsensitiveMap<>();
   public static MultiMap standardHeaders = MultiMap.caseInsensitiveMultiMap();
   public static MultiMap acceptTextHeaders = MultiMap.caseInsensitiveMultiMap();
   public static String MODULE_TO = "1.0.1";
@@ -824,16 +825,9 @@ public class CourseAPITest {
 
   @Test
   public void getReservesFromCourseListingsWithBadQuery(TestContext context) {
-    Async async = context.async();
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
         "/reserves?query=NOT+blooh", GET, standardHeaders, null, 500,
-        "Post Course Reserve").onComplete(res -> {
-      if(res.failed()) {
-        context.fail(res.cause());
-      } else {
-        async.complete();
-      }
-    });
+        "Post Course Reserve").onComplete(context.asyncAssertSuccess());
   }
 
   @Test
@@ -3530,33 +3524,22 @@ public class CourseAPITest {
 
   @Test
   public void testDeleteInUseProcessingStatus(TestContext context) {
-    Async async = context.async();
     JsonObject reservePostJson = new JsonObject()
         .put("courseListingId", COURSE_LISTING_1_ID)
         .put("itemId", OkapiMock.item1Id)
         .put("temporaryLoanTypeId", OkapiMock.loanType1Id)
         .put("processingStatusId", PROCESSING_STATUS_1_ID)
         .put("copyrightTracking", new JsonObject()
-          .put("copyrightStatusId", COPYRIGHT_STATUS_1_ID));
+            .put("copyrightStatusId", COPYRIGHT_STATUS_1_ID));
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
-        "/reserves", POST, standardHeaders, reservePostJson.encode(), 201,
-        "Post Course Reserve").compose( postRes -> {
-      return TestUtil.doRequest(vertx, baseUrl +
-      "/processingstatus/" + PROCESSING_STATUS_1_ID, DELETE, acceptTextHeaders,
-      null, 400, "delete in-use processing status").onComplete(deleteRes -> {
-       if(deleteRes.failed()) {
-         context.fail(deleteRes.cause());
-       } else {
-         async.complete();
-       }
-     });
-   });
-
+                "/reserves", POST, standardHeaders, reservePostJson.encode(), 201,
+            "Post Course Reserve")
+        .compose(postRes ->
+            TestUtil.doRequest(vertx, baseUrl +
+                    "/processingstatuses/" + PROCESSING_STATUS_1_ID, DELETE, standardHeaders,
+                null, 400, "delete in-use processing status"))
+        .onComplete(context.asyncAssertSuccess());
   }
-
-
-
-
 
 
   /* UTILITY METHODS */

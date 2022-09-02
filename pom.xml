@@ -17,9 +17,9 @@
   <properties>
     <argLine />
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <raml-module-builder.version>32.2.4</raml-module-builder.version>
+    <raml-module-builder-version>34.1.2</raml-module-builder-version>
     <ramlfiles_path>${basedir}/ramls</ramlfiles_path>
-    <vertx-version>4.1.0</vertx-version>
+    <vertx-version>4.3.3</vertx-version>
   </properties>
 
   <repositories>
@@ -29,6 +29,13 @@
       <url>https://repository.folio.org/repository/maven-folio</url>
     </repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>folio-nexus</id>
+      <name>FOLIO Maven repository</name>
+      <url>https://repository.folio.org/repository/maven-folio</url>
+    </pluginRepository>
+  </pluginRepositories>
 
   <distributionManagement>
     <repository>
@@ -63,16 +70,6 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <dependency>
-        <groupId>io.vertx</groupId>
-        <artifactId>vertx-sql-client</artifactId>
-        <version>${vertx-version}-FOLIO</version>
-      </dependency>
-      <dependency>
-        <groupId>io.vertx</groupId>
-        <artifactId>vertx-pg-client</artifactId>
-        <version>${vertx-version}-FOLIO</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
   
@@ -81,19 +78,19 @@
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>domain-models-runtime</artifactId>
-      <version>${raml-module-builder.version}</version>
+      <version>${raml-module-builder-version}</version>
     </dependency>
     <dependency>
       <groupId>org.folio</groupId>
       <artifactId>postgres-testing</artifactId>
-      <version>${raml-module-builder.version}</version>
+      <version>${raml-module-builder-version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.13.1</version>
+      <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -112,6 +109,11 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-web-client</artifactId>
       <version>${vertx-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>2.11.1</version>
     </dependency>
     <dependency>
       <groupId>com.github.tomakehurst</groupId>
@@ -143,7 +145,6 @@
 
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
@@ -153,46 +154,15 @@
       </plugin>
       
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.5.0</version>
+        <groupId>org.folio</groupId>
+        <artifactId>domain-models-maven-plugin</artifactId>
+        <version>${raml-module-builder-version}</version>
         <executions>
           <execution>
-            <id>git submodule update</id>
-            <phase>initialize</phase>
-            <configuration>
-              <executable>git</executable>
-              <arguments>
-                <argument>submodule</argument>
-                <argument>update</argument>
-                <argument>--init</argument>
-                <argument>--recursive</argument>
-              </arguments>
-            </configuration>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-          </execution>
-          <execution>
             <id>generate_interfaces</id>
-            <phase>generate-sources</phase>
             <goals>
               <goal>java</goal>
             </goals>
-            <configuration>
-              <mainClass>org.folio.rest.tools.GenerateRunner</mainClass>
-              <cleanupDaemonThreads>false</cleanupDaemonThreads>
-              <systemProperties>
-                <systemProperty>
-                  <key>project.basedir</key>
-                  <value>${basedir}</value>
-                </systemProperty>
-                <systemProperty>
-                  <key>raml_files</key>
-                  <value>${ramlfiles_path}</value>
-                </systemProperty>
-              </systemProperties>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -203,11 +173,11 @@
         <version>3.0.0</version>
         <executions>
           <execution>
-            <id>add_generated_sources_folder</id>
+            <id>addGeneratedSourceFolder</id>
             <goals>
               <goal>add-source</goal>
             </goals>
-            <phase>initialize</phase>
+            <phase>process-sources</phase>
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/raml-jaxrs</source>
@@ -216,6 +186,7 @@
           </execution>
         </executions>
       </plugin>
+
 
       <!-- Release management -->
       <plugin>
@@ -377,17 +348,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.22.0</version>
-        <configuration>
-          <!-- en.US required because some unit tests rely on English error messages.
-               @{argLine} required for sonarqube jacoco -->
-          <argLine>-Duser.language=en -Duser.region=US @{argLine}</argLine>
-          <!-- update to version 3.0.0 and remove useSystemClassLoader
-               https://issues.folio.org/browse/FOLIO-1609
-               https://issues.apache.org/jira/browse/SUREFIRE-1588
-          -->
-          <useSystemClassLoader>false</useSystemClassLoader>
-        </configuration>
+        <version>3.0.0-M4</version>
       </plugin>
     </plugins>
   </build>
