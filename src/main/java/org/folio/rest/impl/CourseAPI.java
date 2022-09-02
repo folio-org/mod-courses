@@ -6,14 +6,15 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.ws.rs.core.Response;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.coursereserves.util.CRUtil;
 import org.folio.coursereserves.util.WrapString;
 import org.folio.cql2pgjson.CQL2PgJSON;
@@ -58,7 +59,7 @@ import org.folio.util.StringUtil;
 
 public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
 
-  public static final Logger logger = LoggerFactory.getLogger(CourseAPI.class);
+  public static final Logger logger = LogManager.getLogger(CourseAPI.class);
 
   public static final String COURSES_TABLE = "coursereserves_courses";
   public static final String COURSE_LISTINGS_TABLE = "coursereserves_courselistings";
@@ -135,17 +136,11 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   }
 
   protected static boolean isDuplicate(String errorMessage) {
-    if (errorMessage != null && errorMessage.contains("duplicate key value violates unique constraint")) {
-      return true;
-    }
-    return false;
+    return errorMessage != null && errorMessage.contains("duplicate key value violates unique constraint");
   }
 
   protected static boolean isCQLError(Throwable err) {
-    if (err.getCause() != null && err.getCause().getClass().getSimpleName().endsWith("CQLParseException")) {
-      return true;
-    }
-    return false;
+    return err.getCause() != null && err.getCause().getClass().getSimpleName().endsWith("CQLParseException");
   }
 
   public static List<Reserf> reserfListFromReserveList(List<Reserve> reserveList) {
@@ -310,7 +305,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
     } else {
       Future<JsonObject> getUserAndGroupFuture;
       if (entity.getUserId() != null) {
-        logger.info("Looking up patrongroup for user with id " + entity.getUserId());
+        logger.info("Looking up patrongroup for user with id {}", entity.getUserId());
         getUserAndGroupFuture = CRUtil.lookupUserAndGroupByUserId(entity.getUserId(), okapiHeaders, vertxContext);
       } else {
         String message = "No user id to look up patrongroup";
@@ -575,7 +570,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       String tenantId = getTenant(okapiHeaders);
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", TERMS_TABLE);
-      logger.info(String.format("Deleting all terms with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all terms with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -635,7 +630,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses",
           COURSE_TYPES_TABLE);
-      logger.info(String.format("Deleting all courses types with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all courses types with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -695,7 +690,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       String tenantId = getTenant(okapiHeaders);
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", DEPARTMENTS_TABLE);
-      logger.info(String.format("Deleting all courses listings with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all courses listings with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -756,7 +751,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses",
           PROCESSING_STATUSES_TABLE);
-      logger.info(String.format("Deleting all processing statuses with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all processing statuses with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -817,7 +812,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses",
           COPYRIGHT_STATUSES_TABLE);
-      logger.info(String.format("Deleting all copyright statuses with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all copyright statuses with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -909,7 +904,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       String tenantId = getTenant(okapiHeaders);
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", COURSES_TABLE);
-      logger.info(String.format("Deleting all courses with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all courses with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -1001,7 +996,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       String tenantId = getTenant(okapiHeaders);
       PostgresClient pgClient = getPGClient(vertxContext, tenantId);
       final String DELETE_ALL_QUERY = String.format("DELETE FROM %s_%s.%s", tenantId, "mod_courses", RESERVES_TABLE);
-      logger.info(String.format("Deleting all reserves with query %s", DELETE_ALL_QUERY));
+      logger.info("Deleting all reserves with query {}", DELETE_ALL_QUERY);
       pgClient.execute(DELETE_ALL_QUERY, mutateReply -> {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
@@ -1083,15 +1078,14 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       } else {
         try {
           Reserve reserve = getReserveRes.result();
-          Future<Void> resetItemFuture;
           if (reserve.getItemId() == null) {
-            resetItemFuture = Future.succeededFuture();
+            promise.complete();
           } else {
-            resetItemFuture = resetItemTemporaryLocation(reserve.getItemId(),
+            resetItemTemporaryLocation(reserve.getItemId(),
                 okapiHeaders, vertxContext).onComplete(resetRes -> {
-              if(resetRes.failed()) {
-                logger.error("Unable to delete item '" + reserve.getItemId() +
-                    "', " + resetRes.cause().getLocalizedMessage());
+              if (resetRes.failed()) {
+                logger.error("Unable to delete item '{}': {}",
+                    reserve.getItemId(), resetRes.cause().getMessage(), resetRes.cause());
               }
               deleteItem(RESERVES_TABLE, reserveId, okapiHeaders, vertxContext)
                   .onComplete(deleteRes -> {
@@ -1158,8 +1152,8 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               String setterMethodName = "set" + capField;
               Method setterMethod = getMethodByName(currentObject, setterMethodName);
               if (setterMethod != null) {
-                logger.debug("Calling set method " + setterMethod.getName() + " (" + setterMethod.getParameterCount()
-                    + " expected parameters)" + " with value null");
+                logger.debug("Calling set method {} ({} expected parameters) with value null",
+                    setterMethod.getName(), setterMethod.getParameterCount());
                 setterMethod.invoke(currentObject, new Object[] { null }); // Set field to null
               }
               break;
@@ -1167,7 +1161,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               String getterMethodName = "get" + capField;
               Method getterMethod = getMethodByName(currentObject, getterMethodName);
               if (getterMethod != null) {
-                logger.debug("Calling get method " + getterMethod.getName());
+                logger.debug("Calling get method {}", getterMethod.getName());
                 currentObject = getterMethod.invoke(currentObject);
               } else {
                 break;
@@ -1178,9 +1172,8 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       } catch(Exception e) {
         String currentObjectClassName
             = currentObject != null ? currentObject.getClass().getName() : "<null>";
-        logger.debug("Error scrubbing derived fields with field '" + singleField + "' " +
-            "and object " + currentObjectClassName + " : "
-            + e.getLocalizedMessage() + ", " + e.getClass().getName());
+        logger.debug("Error scrubbing derived fields with field '{}' and object {}: {}",
+            singleField, currentObjectClassName, e.getMessage(), e);
       }
     }
   }
@@ -1256,13 +1249,13 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
         } else {
           courseListingLocation = null;
         }
-        logger.info("courseListingLocation has a value of " + courseListingLocation);
+        logger.info("courseListingLocation has a value of {}", courseListingLocation);
         final WrapString originalTemporaryLocationId = new WrapString();
-        if(entity.getCopiedItem() != null) {
+        if (entity.getCopiedItem() != null) {
           originalTemporaryLocationId.set(entity.getCopiedItem().getTemporaryLocationId());
         }
 
-        logger.info("originalTemporaryLocationId has a value of " + originalTemporaryLocationId.get());
+        logger.info("originalTemporaryLocationId has a value of {}", originalTemporaryLocationId.get());
 
         Future<JsonObject> getCopiedItemsFuture;
         if(entity.getItemId() != null || (
@@ -1284,7 +1277,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
             String itemId;
             JsonObject retrievedItemJson = getCopiedItemsFuture.result().getJsonObject("item");
             if(retrievedItemJson != null) {
-              logger.info("Got retrieved item JSON: " + retrievedItemJson.encode());
+              logger.info("Got retrieved item JSON: {}", retrievedItemJson.encode());
               itemId = retrievedItemJson.getString("id");
             } else {
               itemId = null;
@@ -1292,7 +1285,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
             if(writeType == WriteType.POST &&
               originalTemporaryLocationId.get() == null && courseListingLocation != null &&
               ( retrievedItemJson == null || retrievedItemJson.getString("temporaryLocationId") == null)) {
-              logger.info("Using courseListing location '" + courseListingLocation + "' for reserve temporary location");
+              logger.info("Using courseListing location '{}' for reserve temporary location", courseListingLocation);
               originalTemporaryLocationId.set(courseListingLocation);
             }
             //String finalOriginalTemporaryLocationId = originalTemporaryLocationId;

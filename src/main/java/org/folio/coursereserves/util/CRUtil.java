@@ -10,8 +10,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
@@ -23,6 +21,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.coursereserves.util.PopulateMapping.ImportType;
 import static org.folio.rest.impl.CourseAPI.COPYRIGHT_STATUSES_TABLE;
 import static org.folio.rest.impl.CourseAPI.COURSE_LISTINGS_TABLE;
@@ -68,8 +69,7 @@ import org.folio.rest.persist.PostgresClient;
 
 public class CRUtil {
 
-  public static final Logger logger = LoggerFactory.getLogger(
-          CRUtil.class);
+  public static final Logger logger = LogManager.getLogger(CRUtil.class);
 
   public static final String SERVICE_POINTS_ENDPOINT = "/service-points";
   public static final String LOCATIONS_ENDPOINT = "/locations";
@@ -145,23 +145,22 @@ public class CRUtil {
     }
     itemIdPromise.future().onComplete(itemIdRes -> {
       if(itemIdRes.failed()) {
-        logger.error("Failed to get item id " + itemIdRes.cause().getLocalizedMessage());
+        logger.error("Failed to get item id {}", itemIdRes.cause().getMessage());
         promise.fail(itemIdRes.cause());
       } else {
         reserve.setItemId(itemIdRes.result());
         String retrievedItemId = itemIdRes.result();
-        logger.info("Looking up information for item " + retrievedItemId
-            + " from inventory module");
+        logger.info("Looking up information for item {} from inventory module",
+            retrievedItemId);
         lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
             .onComplete(inventoryRes -> {
           if(inventoryRes.failed()) {
-            logger.error("Unable to do inventory lookup: "
-                + inventoryRes.cause().getLocalizedMessage());
+            logger.error("Unable to do inventory lookup: {}", inventoryRes.cause().getLocalizedMessage());
             promise.fail(inventoryRes.cause());
           } else {
             try {
-              logger.info("Attempting to populate copied items with inventory lookup for item id "
-                  + retrievedItemId);
+              logger.info("Attempting to populate copied items with inventory lookup for item id {}",
+                  retrievedItemId);
               populateReserveCopiedItemFromJson(reserve, inventoryRes.result());
               promise.complete(inventoryRes.result());
             } catch(Exception e) {
@@ -228,7 +227,7 @@ public class CRUtil {
         copiedItem.setCopy(itemJson.getJsonArray("copyNumbers").getString(0));
       }
     } catch (Exception e) {
-      logger.info("Unable to copy copyNumber(s) field from item: " + e.getLocalizedMessage());
+      logger.info("Unable to copy copyNumber(s) field from item: {}", e.getMessage());
     }
     try {
       JsonArray eaItemJsonArray = itemJson.getJsonArray("electronicAccess");
@@ -244,7 +243,7 @@ public class CRUtil {
       copiedItem.setUri(uri);
       copiedItem.setUrl(publicNote);
     } catch(Exception e) {
-      logger.info("Unable to copy electronic access field from item: " + e.getLocalizedMessage());
+      logger.info("Unable to copy electronic access field from item: {}", e.getMessage());
     }
     String permanentLocationId = itemJson.getString("permanentLocationId");
     if(permanentLocationId == null) {
@@ -300,17 +299,17 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     Promise promise = Promise.promise();
     JsonObject result = new JsonObject();
-    logger.info("Making request for item at " + ITEMS_ENDPOINT + "/" + itemId);
+    logger.info("Making request for item at {}/{}", ITEMS_ENDPOINT, itemId);
     makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
         HttpMethod.GET, null, null, 200).onComplete(itemRes -> {
       if(itemRes.failed()) {
-        logger.error("Unable to lookup item by id " + itemId);
+        logger.error("Unable to lookup item by id {}", itemId);
         promise.fail(itemRes.cause());
       } else {
         JsonObject itemJson = itemRes.result();
         String holdingsId = itemJson.getString("holdingsRecordId");
         result.put("item", itemJson);
-        logger.info("Making request for holdings at " + HOLDINGS_ENDPOINT + "/" + holdingsId);
+        logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
         makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
             HttpMethod.GET, null, null, 200).onComplete(holdingsRes -> {
           if(holdingsRes.failed()) {
@@ -319,7 +318,7 @@ public class CRUtil {
             JsonObject holdingsJson = holdingsRes.result();
             String instanceId = holdingsJson.getString("instanceId");
             result.put("holdings", holdingsJson);
-            logger.info("Making request for instance at " + INSTANCES_ENDPOINT + "/" + instanceId);
+            logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
             makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT
                 + "/" + instanceId, HttpMethod.GET, null, null, 200).onComplete(
                 instanceRes -> {
@@ -404,7 +403,7 @@ public class CRUtil {
         }
       }
     }
-    logger.debug("Creating request for url " + requestUrl);
+    logger.debug("Creating request for url {}", requestUrl);
     HttpRequest<Buffer> request = client.requestAbs(method, requestUrl);
     for(Map.Entry<String, String> entry : headers.entries()) {
       String key = entry.getKey();
@@ -511,7 +510,7 @@ public class CRUtil {
     String query = "barcode==" + StringUtil.cqlEncode(barcode);
     // TODO: replace StringUtil.urlEncode by PercentCodec.encode after upgrading to RMB 33
     String itemRequestUrl = ITEMS_ENDPOINT + "?query=" + StringUtil.urlEncode(query);
-    logger.debug("Looking up item by barcode with url " + itemRequestUrl);
+    logger.debug("Looking up item by barcode with url {}", itemRequestUrl);
     return makeOkapiRequest(context.owner(), okapiHeaders, itemRequestUrl, HttpMethod.GET,
         null, null, 200)
     .map(jsonObject -> {
@@ -546,15 +545,15 @@ public class CRUtil {
             reserve.getCopiedItem().setTemporaryLocationObject(
                 temporaryLocationObjectFromJson(tempLocationFuture.result()));
           } else {
-            logger.info("TemporaryLocationObject lookup failed "
-                + tempLocationFuture.cause().getLocalizedMessage());
+            logger.info("TemporaryLocationObject lookup failed {}",
+                tempLocationFuture.cause().getMessage());
           }
           if(permLocationFuture.succeeded()) {
             reserve.getCopiedItem().setPermanentLocationObject(
                 temporaryLocationObjectFromJson(permLocationFuture.result()));
           } else {
-            logger.info("PermanentLocationObject lookup failed "
-                + permLocationFuture.cause().getLocalizedMessage());
+            logger.info("PermanentLocationObject lookup failed {}",
+                permLocationFuture.cause().getMessage());
           }
         } else {
           logger.info("No copied item field in reserve to populate");
@@ -660,7 +659,7 @@ public class CRUtil {
   public static Future<CourseListing> getCourseListingById(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
     Promise<CourseListing> promise = Promise.promise();
-    logger.info("Looking up course listing for id '" + courseListingId + "'");
+    logger.info("Looking up course listing for id '{}'",courseListingId);
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
     postgresClient.getById(COURSE_LISTINGS_TABLE, courseListingId, CourseListing.class,
         courseListingReply -> {
@@ -752,11 +751,11 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     Promise<JsonObject> promise = Promise.promise();
     String locationPath = LOCATIONS_ENDPOINT + "/" + locationId;
-    logger.debug("Making request for location at " + locationPath);
+    logger.debug("Making request for location at {}", locationPath);
     makeOkapiRequest(context.owner(), okapiHeaders, locationPath, HttpMethod.GET,
         null, null, 200).onComplete(locationRes-> {
-      if(locationRes.failed()) {
-        logger.error("Location request failed: " + locationRes.cause().getLocalizedMessage());
+      if (locationRes.failed()) {
+        logger.error("Location request failed: {}", locationRes.cause().getMessage());
         promise.fail(locationRes.cause());
       } else {
         logger.debug("Location request succeeded");
@@ -771,7 +770,7 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     Promise<JsonObject> promise = Promise.promise();
     String loanTypePath = LOAN_TYPES_ENDPOINT + "/" + loanTypeId;
-    logger.debug("Making request for location at " + loanTypePath);
+    logger.debug("Making request for location at {}", loanTypePath);
     makeOkapiRequest(context.owner(), okapiHeaders, loanTypePath, HttpMethod.GET,
         null, null, 200).onComplete(loanTypeRes-> {
       if(loanTypeRes.failed()) {
@@ -790,7 +789,7 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     Promise<JsonObject> promise = Promise.promise();
     String servicePointPath = SERVICE_POINTS_ENDPOINT + "/" + servicepointId;
-    logger.debug("Making request for servicepoint at " + servicePointPath);
+    logger.debug("Making request for servicepoint at {}", servicePointPath);
     makeOkapiRequest(context.owner(), okapiHeaders, servicePointPath,
         HttpMethod.GET, null, null, 200).onComplete(spRes -> {
       if(spRes.failed()) {
@@ -813,7 +812,7 @@ public class CRUtil {
       idCrit.setOperation("=");
       idCrit.setVal(courseListingId);
       Criterion criterion = new Criterion(idCrit);
-      logger.info("Requesting instructor records with criterion: " + criterion.toString());
+      logger.info("Requesting instructor records with criterion: {}", criterion);
       postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion,
           true, false, res -> {
         if(res.failed()) {
@@ -848,7 +847,7 @@ public class CRUtil {
             try {
               CourseListing courseListing = getRes.result();
               List<Instructor> instructorList = instructorRes.result();
-              logger.info("Found " + instructorList.size() + " instructors for listing " + courseListingId);
+              logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
               courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
                   instructorList));
               PostgresClient postgresClient = getPgClient(okapiHeaders, context);
@@ -1049,11 +1048,11 @@ public class CRUtil {
     try {
        String id = itemJson.getString("id");
        String putPath = ITEMS_ENDPOINT + "/" + id;
-       logger.info("Making PUT request to Okapi inventory storage with itemJson " + itemJson.encode());
+       logger.info("Making PUT request to Okapi inventory storage with itemJson {}", itemJson.encode());
        makeOkapiRequest(context.owner(), okapiHeaders, putPath, HttpMethod.PUT,
            textAcceptHeaders, itemJson.encode(), 204).onComplete(res -> {
-         if(res.failed()) {
-           logger.error("Put failed: " + res.cause().getLocalizedMessage());
+         if (res.failed()) {
+           logger.error("Put failed: {}", res.cause().getMessage());
            promise.fail(res.cause());
          } else {
            promise.complete();
@@ -1095,8 +1094,8 @@ public class CRUtil {
     LocationObject locationObject = new LocationObject();
     try {
       populatePojoFromJson(locationObject, json, LOCATION_MAP_LIST);
-    } catch(Exception e) {
-      logger.error("Unable to create location object from json: " + e.getLocalizedMessage());
+    } catch (Exception e) {
+      logger.error("Unable to create location object from json: {}", e.getMessage());
       return null;
     }
     return locationObject;
@@ -1111,9 +1110,8 @@ public class CRUtil {
     TemporaryLocationObject locationObject = new TemporaryLocationObject();
     try {
       populatePojoFromJson(locationObject, json, LOCATION_MAP_LIST);
-    } catch(Exception e) {
-      logger.error("Unable to create temporary location object from json: "
-          + e.getLocalizedMessage());
+    } catch (Exception e) {
+      logger.error("Unable to create temporary location object from json: {}", e.getMessage());
       return null;
     }
     return locationObject;
@@ -1142,8 +1140,7 @@ public class CRUtil {
     try {
       populatePojoFromJson(servicepointObject, json, mapList);
     } catch(Exception e) {
-      logger.error("Unable to create service point object from json: "
-        +e.getLocalizedMessage());
+      logger.error("Unable to create service point object from json: {}", e.getMessage());
       return null;
     }
     try {
@@ -1159,8 +1156,8 @@ public class CRUtil {
       if(!staffSlipList.isEmpty()) {
         servicepointObject.setStaffSlips(staffSlipList);
       }
-    } catch(Exception e) {
-      logger.error("Unable to add staffslips from json: " + e.getLocalizedMessage());
+    } catch (Exception e) {
+      logger.error("Unable to add staffslips from json: {}", e.getMessage());
     }
 
     try {
@@ -1169,22 +1166,21 @@ public class CRUtil {
         HoldShelfExpiryPeriod hsep = new HoldShelfExpiryPeriod();
         hsep.setDuration(hsepJson.getInteger("duration"));
         String intervalIdString = hsepJson.getString("intervalId");
-        if(intervalIdString.equals("Minutes")) {
+        if (intervalIdString.equals("Minutes")) {
           hsep.setIntervalId(IntervalId.MINUTES);
-        } else if(intervalIdString.equals("Hours")) {
+        } else if (intervalIdString.equals("Hours")) {
           hsep.setIntervalId(IntervalId.HOURS);
-        } else if(intervalIdString.equals("Days")) {
+        } else if (intervalIdString.equals("Days")) {
           hsep.setIntervalId(IntervalId.DAYS);
-        } else if(intervalIdString.equals("Weeks")) {
+        } else if (intervalIdString.equals("Weeks")) {
           hsep.setIntervalId(IntervalId.WEEKS);
-        } else if(intervalIdString.equals("Months")) {
+        } else if (intervalIdString.equals("Months")) {
           hsep.setIntervalId(IntervalId.MONTHS);
         }
         servicepointObject.setHoldShelfExpiryPeriod(hsep);
       }
-    } catch(Exception e) {
-      logger.error("Unable to add hold shelf expiry from json: "
-          + e.getLocalizedMessage());
+    } catch (Exception e) {
+      logger.error("Unable to add hold shelf expiry from json: {}", e.getMessage());
     }
     return servicepointObject;
   }

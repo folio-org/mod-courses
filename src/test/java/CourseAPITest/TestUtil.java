@@ -8,18 +8,18 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Map;
 
 
 public class TestUtil {
   private static HttpClient httpClient = null;
-  private static final Logger logger = LoggerFactory.getLogger(TestUtil.class.getClass()
-      .getName());
+  private static final Logger logger = LogManager.getLogger(TestUtil.class);
 
   static class WrappedResponse {
     private String explanation;
@@ -182,8 +182,8 @@ public class TestUtil {
                   + responseString + " | " + explainString;
             throw new RuntimeException(message);
           } else {
-            logger.info("Got status code " + result.statusCode() + " with payload of: "
-                + responseString + " | " + explainString);
+            logger.info("Got status code {} with payload of: {} | {}",
+              result.statusCode(), responseString, explainString);
             WrappedResponse wr = new WrappedResponse(explanation, result.statusCode(),
                 responseString, result);
             promise.complete(wr);
@@ -195,9 +195,8 @@ public class TestUtil {
       }
     });
 
-    logger.info("Sending " + method.toString() + " request to url '"+
-              uri + " with payload: " + payload + "'\n");
-
+    logger.info("Sending {} request to url {} with payload {}\n",
+        method.toString(), uri, payload);
     return promise.future();
 
   }

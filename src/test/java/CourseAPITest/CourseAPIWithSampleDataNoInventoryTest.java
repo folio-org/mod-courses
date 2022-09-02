@@ -51,11 +51,11 @@ public class CourseAPIWithSampleDataNoInventoryTest extends CourseAPIWithSampleD
     PostgresClient.setPostgresTester(new PostgresTesterContainer());
     vertx.deployVerticle(OkapiMock.class.getName(), okapiOptions)
     .onSuccess(id -> okapiVerticleId = id)
-    .onSuccess(x -> logger.info("Deployed Mock Okapi on port " + okapiPort))
+    .onSuccess(x -> logger.info("Deployed Mock Okapi on port {}", okapiPort))
     .compose(x -> vertx.deployVerticle(RestVerticle.class.getName(), options))
     .onSuccess(id -> restVerticleId = id)
     .compose(x ->  wipeMockOkapi())
-    .onSuccess(x -> logger.info("Deployed verticle on port " + port))
+    .onSuccess(x -> logger.info("Deployed verticle on port {}", port))
     .compose(x -> initTenant("diku", port))
     .onComplete(context.asyncAssertSuccess());
   }

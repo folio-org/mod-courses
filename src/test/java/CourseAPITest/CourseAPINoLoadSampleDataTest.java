@@ -52,12 +52,12 @@ public class CourseAPINoLoadSampleDataTest extends CourseAPIWithSampleDataTest {
     PostgresClient.setPostgresTester(new PostgresTesterContainer());
     vertx.deployVerticle(OkapiMock.class.getName(), okapiOptions)
     .onSuccess(id -> okapiVerticleId = id)
-    .onSuccess(x -> logger.info("Deployed Mock Okapi on port " + okapiPort))
+    .onSuccess(x -> logger.info("Deployed Mock Okapi on port {}", okapiPort))
     .compose(x -> vertx.deployVerticle(RestVerticle.class.getName(), options))
     .onSuccess(id -> restVerticleId = id)
     .compose(x -> resetMockOkapi())
     .compose(x -> addSampleData())
-    .onSuccess(x -> logger.info("Deployed verticle on port " + port))
+    .onSuccess(x -> logger.info("Deployed verticle on port {}", port))
     .compose(x -> initTenant("diku", port))
     .onComplete(context.asyncAssertSuccess());
   }
@@ -84,9 +84,6 @@ public class CourseAPINoLoadSampleDataTest extends CourseAPIWithSampleDataTest {
   public void afterEach(TestContext context) {
     logger.info("After each");
   }
-
-
-
 
 
   protected static Future<Void> initTenant(String tenantId, int port) {

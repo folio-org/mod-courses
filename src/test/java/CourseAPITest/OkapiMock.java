@@ -6,8 +6,6 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -16,12 +14,12 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.util.StringUtil;
 
-
 public class OkapiMock extends AbstractVerticle {
-  private static final Logger logger = LoggerFactory.getLogger(OkapiMock.class.getClass()
-      .getName());
+  private static final Logger logger = LogManager.getLogger(OkapiMock.class.getClass());
   public static String user1Id = UUID.randomUUID().toString();
   public static String user2Id = UUID.randomUUID().toString();
   public static String user3Id = UUID.randomUUID().toString();
@@ -118,7 +116,7 @@ public class OkapiMock extends AbstractVerticle {
     router.route("/wipe").handler(this::handleWipe);
     router.route("/addsample").handler(this::handleAddSample);
 
-    logger.info("Running OkapiMock on port " + port);
+    logger.info("Running OkapiMock on port {}", port);
     server.requestHandler(router).listen(port)
     .<Void>mapEmpty()
     .onComplete(promise);
@@ -175,13 +173,13 @@ public class OkapiMock extends AbstractVerticle {
    }
 
   private void handleItems(RoutingContext context) {
-    logger.info("Got request for items: " + context.request().absoluteURI());
+    logger.info("Got request for items: {}", context.request().absoluteURI());
     String id = context.request().getParam("id");
     if (context.request().method() == HttpMethod.GET) {
       String query = context.request().query();
       if (query != null) {
         String barcode = parseBarcode(query);
-        logger.info("Searching for barcode " + barcode);
+        logger.info("Searching for barcode {}", barcode);
         JsonArray matchingItems = new JsonArray();
         for(JsonObject json : itemMap.values()) {
           if(json.containsKey("barcode") && json.getString("barcode").equals(barcode)) {
@@ -216,7 +214,7 @@ public class OkapiMock extends AbstractVerticle {
         if(putContent == null || putContent.length() == 0) {
           throw new UnsupportedOperationException("No content in PUT body read");
         }
-        logger.info("Got body of PUT request " + putContent);
+        logger.info("Got body of PUT request {}", putContent);
         JsonObject putJson = null;
         if(!itemMap.containsKey(id)) {
           context.response().setStatusCode(404)

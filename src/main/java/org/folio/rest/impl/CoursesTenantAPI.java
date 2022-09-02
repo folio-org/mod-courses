@@ -3,10 +3,11 @@ package org.folio.rest.impl;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Handler;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.rest.jaxrs.model.TenantAttributes;
 import javax.ws.rs.core.Response;
 import org.folio.rest.tools.utils.TenantLoading;
@@ -14,11 +15,10 @@ import org.folio.coursereserves.util.Util;
 import org.folio.rest.jaxrs.model.Parameter;
 
 
-
 public class CoursesTenantAPI extends TenantAPI {
 
   public static final String SAMPLE_DATA_COURSELISTING = "c03bcba3-a6a0-4251-b316-0631bb2e6f21";
-  public static final Logger logger = LoggerFactory.getLogger(CoursesTenantAPI.class);
+  public static final Logger logger = LogManager.getLogger(CoursesTenantAPI.class);
   protected static final String PARAMETER_LOAD_SAMPLE = "loadSample";
 
   @Override
@@ -36,7 +36,7 @@ public class CoursesTenantAPI extends TenantAPI {
     loadSample = loadSampleCandidate != null ? loadSampleCandidate : false;
     super.postTenantSync(tenantAttributes, headers, res -> {
       if(res.failed()) {
-        logger.error("Unable to load tenant: " + res.cause().getMessage());
+        logger.error("Unable to load tenant: {}", res.cause().getMessage());
         handler.handle(res);
       } else if(Boolean.TRUE.equals(loadSample)) {
         TenantLoading tenantLoading = new TenantLoading();
