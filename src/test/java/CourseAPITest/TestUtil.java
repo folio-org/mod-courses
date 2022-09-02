@@ -180,8 +180,7 @@ public class TestUtil {
                   + " failed. Expected status code "
                   + expectedCode + ", got status code " + result.statusCode() + ": "
                   + responseString + " | " + explainString;
-            promise.fail(message);
-            logger.error(message);
+            throw new RuntimeException(message);
           } else {
             logger.info("Got status code " + result.statusCode() + " with payload of: "
                 + responseString + " | " + explainString);
@@ -189,7 +188,8 @@ public class TestUtil {
                 responseString, result);
             promise.complete(wr);
           }
-        } catch(Exception e) {
+        } catch (Exception e) {
+          logger.error(e.getMessage(), e);
           promise.tryFail(e);
         }
       }
