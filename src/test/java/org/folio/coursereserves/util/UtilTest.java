@@ -128,6 +128,7 @@ public class UtilTest {
             .put("item", new JsonObject()
                 .put("copyNumbers", true))
     );
+    assertNull(reserve.getCopiedItem().getCopy());
   }
 
   @Test
@@ -141,6 +142,7 @@ public class UtilTest {
             .put("item", new JsonObject()
                 .put("copyNumbers", new JsonArray().add("2")))
     );
+    assertEquals("2", reserve.getCopiedItem().getCopy());
   }
 
 }
