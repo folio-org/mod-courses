@@ -577,7 +577,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
           asyncResultHandler.handle(Future
               .succeededFuture(DeleteCoursereservesTermsResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesTermsResponse.noContent().build()));
+          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesTermsResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -638,7 +638,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               DeleteCoursereservesCoursetypesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
           asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesCoursetypesResponse.noContent().build()));
+              .handle(Future.succeededFuture(DeleteCoursereservesCoursetypesResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -698,7 +698,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               DeleteCoursereservesDepartmentsResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
           asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesDepartmentsResponse.noContent().build()));
+              .handle(Future.succeededFuture(DeleteCoursereservesDepartmentsResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -759,7 +759,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               DeleteCoursereservesProcessingstatusesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
           asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesProcessingstatusesResponse.noContent().build()));
+              .handle(Future.succeededFuture(DeleteCoursereservesProcessingstatusesResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -820,7 +820,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
               DeleteCoursereservesCopyrightstatusesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
           asyncResultHandler
-              .handle(Future.succeededFuture(DeleteCoursereservesCopyrightstatusesResponse.noContent().build()));
+              .handle(Future.succeededFuture(DeleteCoursereservesCopyrightstatusesResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -911,7 +911,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
           asyncResultHandler.handle(Future
               .succeededFuture(DeleteCoursereservesCoursesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCoursesResponse.noContent().build()));
+          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCoursesResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -1003,7 +1003,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
           asyncResultHandler.handle(Future
               .succeededFuture(DeleteCoursereservesReservesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesReservesResponse.noContent().build()));
+          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesReservesResponse.respond204()));
         }
       });
     } catch (Exception e) {
@@ -1169,11 +1169,9 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
             }
           }
         }
-      } catch(Exception e) {
-        String currentObjectClassName
-            = currentObject != null ? currentObject.getClass().getName() : "<null>";
+      } catch (Exception e) {
         logger.debug("Error scrubbing derived fields with field '{}' and object {}: {}",
-            singleField, currentObjectClassName, e.getMessage(), e);
+            singleField, currentObject.getClass().getName(), e.getMessage(), e);
       }
     }
   }
