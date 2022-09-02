@@ -12,15 +12,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.predicate.ResponsePredicate;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Map;
-
 import static CourseAPITest.CourseAPITest.MODULE_FROM;
 import static CourseAPITest.CourseAPITest.MODULE_TO;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 
 public class TestUtil {
@@ -181,12 +179,11 @@ public class TestUtil {
   }
 
   private static Future<Void> initTenantWait(WebClient client, String tenantId, String url) {
-    HttpRequest<Buffer> request = client.getAbs(url).addQueryParam("wait", "10000");
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    return request.send().compose(result -> {
-      assertThat(result.statusCode(), is(200));
-      return Future.succeededFuture();
-    });
+    return client
+        .getAbs(url).addQueryParam("wait", "10000")
+        .putHeader("X-Okapi-Tenant", tenantId)
+        .expect(ResponsePredicate.SC_OK)
+        .send().mapEmpty();
   }
 
   public static Future<Void> initTenant(WebClient client, String tenantId, int port,
@@ -196,17 +193,15 @@ public class TestUtil {
         .put("module_to", MODULE_TO)
         .put("module_from", MODULE_FROM)
         .put("parameters", parameters);
-    HttpRequest<Buffer> request = client.postAbs(url);
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    request.putHeader("X-Okapi-Url", okapiUrl);
-    request.putHeader("X-Okapi-Url-To", "http://localhost:" + port);
-    return request.sendJsonObject(payload)
-        .compose(result -> {
-          assertThat(result.statusCode(), is(201));
-          return initTenantWait(client, tenantId,
-              "http://localhost:" + port + result.getHeader("Location"));
-        });
+    return client.postAbs(url)
+        .putHeader("X-Okapi-Tenant", tenantId)
+        .putHeader("X-Okapi-Url", okapiUrl)
+        .putHeader("X-Okapi-Url-To", "http://localhost:" + port)
+        .expect(ResponsePredicate.SC_CREATED)
+        .sendJsonObject(payload)
+        .compose(result ->
+            initTenantWait(client, tenantId,
+                "http://localhost:" + port + result.getHeader("Location")));
   }
-
 }
 
