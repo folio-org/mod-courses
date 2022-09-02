@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 import org.folio.util.StringUtil;
 
 public class OkapiMock extends AbstractVerticle {
-  private static final Logger logger = LogManager.getLogger(OkapiMock.class.getClass());
+  private static final Logger logger = LogManager.getLogger(OkapiMock.class);
   public static String user1Id = UUID.randomUUID().toString();
   public static String user2Id = UUID.randomUUID().toString();
   public static String user3Id = UUID.randomUUID().toString();
@@ -125,15 +125,13 @@ public class OkapiMock extends AbstractVerticle {
    private void handleUsers(RoutingContext context) {
       String id = context.request().getParam("id");
       if(context.request().method() == HttpMethod.GET) {
-        if(id == null) {
-          String message = String.format("List retrieval currently unsupported");
+        if (id == null) {
+          String message = "List retrieval currently unsupported";
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(userMap.containsKey(id)) {
             context.response().setStatusCode(200).end(userMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -143,22 +141,19 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
    private void handleGroups(RoutingContext context) {
      String id = context.request().getParam("id");
      if(context.request().method() == HttpMethod.GET) {
-        if(id == null) {
-          String message = String.format("List retrieval currently unsupported");
+        if (id == null) {
+          String message = "List retrieval currently unsupported";
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(groupMap.containsKey(id)) {
             context.response().setStatusCode(200).end(groupMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -168,7 +163,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -190,15 +184,12 @@ public class OkapiMock extends AbstractVerticle {
             .put("items", matchingItems)
             .put("totalRecords", matchingItems.size());
         context.response().setStatusCode(200).end(result.encode());
-        return;
       } else if (id == null) {
         String message = String.format("List retrieval currently unsupported");
         context.response().setStatusCode(400)
             .end(message);
-        return;
       } else if (itemMap.containsKey(id)) {
         context.response().setStatusCode(200).end(itemMap.get(id).encode());
-        return;
       } else {
         context.response().setStatusCode(404).end("id '" + id + "' not found");
       }
@@ -210,18 +201,17 @@ public class OkapiMock extends AbstractVerticle {
         return;
       }
       try {
-        String putContent = context.getBodyAsString();
+        String putContent = context.body().asString();
         if(putContent == null || putContent.length() == 0) {
           throw new UnsupportedOperationException("No content in PUT body read");
         }
         logger.info("Got body of PUT request {}", putContent);
-        JsonObject putJson = null;
         if(!itemMap.containsKey(id)) {
           context.response().setStatusCode(404)
               .end("Item with id '" + id + "' does not exist");
           return;
         }
-        putJson = new JsonObject(putContent);
+        JsonObject putJson = new JsonObject(putContent);
         if(!putJson.getString("id").equals(id)) {
           throw new UnsupportedOperationException("id field in json must match id '" + id + "'");
         }
@@ -241,12 +231,10 @@ public class OkapiMock extends AbstractVerticle {
         logger.error(e.getMessage(), e);
         context.response().setStatusCode(400)
             .end(e.getLocalizedMessage());
-        return;
       } catch(Exception e) {
         logger.error(e.getMessage(), e);
         context.response().setStatusCode(500)
             .end(e.getLocalizedMessage());
-        return;
       }
     } else if(context.request().method() == HttpMethod.DELETE) {
       if(id == null) {
@@ -258,7 +246,6 @@ public class OkapiMock extends AbstractVerticle {
           if(!itemMap.containsKey(id)) {
             context.response().setStatusCode(404)
                 .end("Item with id '" + id + "' does not exist");
-            return;
           } else {
             itemMap.remove(id);
             context.response().setStatusCode(204)
@@ -274,7 +261,6 @@ public class OkapiMock extends AbstractVerticle {
           .method().toString());
       context.response().setStatusCode(400)
           .end(message);
-      return;
     }
   }
 
@@ -295,11 +281,9 @@ public class OkapiMock extends AbstractVerticle {
           String message = String.format("List retrieval currently unsupported");
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(holdingsMap.containsKey(id)) {
             context.response().setStatusCode(200).end(holdingsMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -309,7 +293,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -320,11 +303,9 @@ public class OkapiMock extends AbstractVerticle {
           String message = String.format("List retrieval currently unsupported");
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(instanceMap.containsKey(id)) {
             context.response().setStatusCode(200).end(instanceMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -334,7 +315,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -346,11 +326,9 @@ public class OkapiMock extends AbstractVerticle {
           String message = String.format("List retrieval currently unsupported");
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(locationMap.containsKey(id)) {
             context.response().setStatusCode(200).end(locationMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -360,7 +338,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -372,11 +349,9 @@ public class OkapiMock extends AbstractVerticle {
           String message = String.format("List retrieval currently unsupported");
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(servicePointMap.containsKey(id)) {
             context.response().setStatusCode(200).end(servicePointMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -386,7 +361,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -398,11 +372,9 @@ public class OkapiMock extends AbstractVerticle {
           String message = String.format("List retrieval currently unsupported");
           context.response().setStatusCode(400)
           .end(message);
-          return;
         } else {
           if(loanTypeMap.containsKey(id)) {
             context.response().setStatusCode(200).end(loanTypeMap.get(id).encode());
-            return;
           } else {
             context.response().setStatusCode(404).end("id '" + id + "' not found");
           }
@@ -412,7 +384,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
       }
    }
 
@@ -422,7 +393,7 @@ public class OkapiMock extends AbstractVerticle {
        String postContent = context.getBodyAsString();
        JsonObject json = new JsonObject(postContent);
        try {
-        if(json != null && json.containsKey("wipe")) {
+        if (json.containsKey("wipe")) {
           if(json.getBoolean("wipe")) {
             wipeData();
             context.response().setStatusCode(201).end(json.encode());
@@ -438,7 +409,6 @@ public class OkapiMock extends AbstractVerticle {
             .method().toString());
         context.response().setStatusCode(400)
           .end(message);
-        return;
      }
    }
 
@@ -448,8 +418,8 @@ public class OkapiMock extends AbstractVerticle {
        String postContent = context.getBodyAsString();
        JsonObject json = new JsonObject(postContent);
        try {
-        if(json != null && json.containsKey("reset")) {
-          if(json.getBoolean("reset")) {
+        if (json.containsKey("reset")) {
+          if (json.getBoolean("reset")) {
             initData();
             context.response().setStatusCode(201).end(json.encode());
           } else {
