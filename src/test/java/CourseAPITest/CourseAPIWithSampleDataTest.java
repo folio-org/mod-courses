@@ -1,23 +1,19 @@
 package CourseAPITest;
 
-import static CourseAPITest.CourseAPITest.MODULE_FROM;
-import static CourseAPITest.CourseAPITest.MODULE_TO;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import static io.vertx.core.http.HttpMethod.GET;
 import static io.vertx.core.http.HttpMethod.POST;
+
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.ext.web.client.HttpRequest;
-import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,7 +79,11 @@ public class CourseAPIWithSampleDataTest {
     .compose(x -> resetMockOkapi())
     .compose(x -> addSampleData())
     .onSuccess(x -> logger.info("Deployed verticle on port {}", port))
-    .compose(x -> initTenant("diku", port))
+    .compose(x -> TestUtil.initTenant(WebClient.create(vertx), "diku", port, okapiUrl,
+        new JsonArray().add(
+            new JsonObject()
+                .put("key", "loadSample")
+                .put("value", "true"))))
     .onComplete(context.asyncAssertSuccess());
   }
 
@@ -145,47 +145,7 @@ public class CourseAPIWithSampleDataTest {
     return promise.future();
   }
 
-  protected static Future<Void> initTenant(String tenantId, int port) {
-    Promise<Void> promise = Promise.promise();
-    WebClient client = WebClient.create(vertx);
-    String url = "http://localhost:" + port + "/_/tenant";
-    JsonObject payload = new JsonObject()
-        .put("module_to", MODULE_TO)
-        .put("module_from", MODULE_FROM)
-        .put("parameters", new JsonArray()
-          .add(new JsonObject()
-            .put("key", "loadSample")
-            .put("value", true))
-         );
-    HttpRequest<Buffer> request = client.postAbs(url);
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    request.putHeader("X-Okapi-Url", okapiUrl);
-    request.putHeader("Content-Type", "application/json");
-    request.putHeader("Accept", "application/json, text/plain");
-    request.putHeader("X-Okapi-Url-To", okapiTenantUrl);
-    request.sendJsonObject(payload).onComplete(res -> {
-      if(res.failed()) {
-        promise.fail(res.cause());
-      } else {
-        HttpResponse<Buffer> result = res.result();
-        if(result.statusCode() != 204) {
-          promise.fail("Expected 204, got " + result.statusCode());
-        } else {
-          promise.complete();
-        }
-      }
-    });
-    return promise.future();
-  }
-
   //Tests
-
-  @Test
-  public void dummyTest(TestContext context) {
-    Async async = context.async();
-    context.assertTrue(true);
-    async.complete();
-  }
 
   @Test
   public void testCourseListingLoad(TestContext context) {

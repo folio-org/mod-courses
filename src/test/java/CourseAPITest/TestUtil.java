@@ -7,6 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
@@ -15,6 +16,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
+
+import static CourseAPITest.CourseAPITest.MODULE_FROM;
+import static CourseAPITest.CourseAPITest.MODULE_TO;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 
 public class TestUtil {
@@ -126,33 +132,6 @@ public class TestUtil {
             (String)entry.getKey(), (String)entry.getValue()));
       }
     }
-    /*
-    //standard exception handler
-    request.exceptionHandler(e -> { future.fail(e); });
-    request.handler( req -> {
-      req.bodyHandler(buf -> {
-        String explainString = "(no explanation)";
-        if(explanation != null) { explainString = explanation; }
-        if(expectedCode != null && expectedCode != req.statusCode()) {
-          future.fail(method.toString() + " to " + url + " failed. Expected status code "
-                  + expectedCode + ", got status code " + req.statusCode() + ": "
-                  + buf.toString() + " | " + explainString);
-        } else {
-          System.out.println("Got status code " + req.statusCode() + " with payload of: " + buf.toString() + " | " + explainString);
-          WrappedResponse wr = new WrappedResponse(explanation, req.statusCode(), buf.toString(), req);
-          future.complete(wr);
-        }
-      });
-    });
-    System.out.println("Sending " + method.toString() + " request to url '"+
-              url + " with payload: " + payload + "'\n");
-    if(method == HttpMethod.PUT || method == HttpMethod.POST) {
-      request.end(payload);
-    } else {
-      request.end();
-    }
-    return future;
-    */
     return wrapRequestResponse(request, payload, url, method, expectedCode, explanation);
   }
 
@@ -200,5 +179,34 @@ public class TestUtil {
     return promise.future();
 
   }
+
+  private static Future<Void> initTenantWait(WebClient client, String tenantId, String url) {
+    HttpRequest<Buffer> request = client.getAbs(url).addQueryParam("wait", "10000");
+    request.putHeader("X-Okapi-Tenant", tenantId);
+    return request.send().compose(result -> {
+      assertThat(result.statusCode(), is(200));
+      return Future.succeededFuture();
+    });
+  }
+
+  public static Future<Void> initTenant(WebClient client, String tenantId, int port,
+      String okapiUrl, JsonArray parameters) {
+    String url = "http://localhost:" + port + "/_/tenant";
+    JsonObject payload = new JsonObject()
+        .put("module_to", MODULE_TO)
+        .put("module_from", MODULE_FROM)
+        .put("parameters", parameters);
+    HttpRequest<Buffer> request = client.postAbs(url);
+    request.putHeader("X-Okapi-Tenant", tenantId);
+    request.putHeader("X-Okapi-Url", okapiUrl);
+    request.putHeader("X-Okapi-Url-To", "http://localhost:" + port);
+    return request.sendJsonObject(payload)
+        .compose(result -> {
+          assertThat(result.statusCode(), is(201));
+          return initTenantWait(client, tenantId,
+              "http://localhost:" + port + result.getHeader("Location"));
+        });
+  }
+
 }
 

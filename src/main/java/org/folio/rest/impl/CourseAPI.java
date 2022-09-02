@@ -42,7 +42,6 @@ import org.folio.rest.jaxrs.model.Roles;
 import org.folio.rest.jaxrs.model.Term;
 import org.folio.rest.jaxrs.model.Terms;
 import org.folio.rest.jaxrs.model.Reserf;
-import org.folio.rest.jaxrs.model.CopiedItem;
 import org.folio.rest.persist.Criteria.Criteria;
 import org.folio.rest.persist.Criteria.Criterion;
 import org.folio.rest.persist.Criteria.Limit;
@@ -1199,7 +1198,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
                   .handle(Future.succeededFuture(GetCoursereservesCourselistingsReservesByListingIdResponse
                       .respond500WithTextPlain(getErrorResponse(message))));
             } else {
-              Future<List<Reserve>> reserveListFuture = null;
+              Future<List<Reserve>> reserveListFuture;
               if (expand == null || !expand.equals("*")) {
                 reserveListFuture = Future.succeededFuture(getReply.result().getResults());
               } else {
@@ -1240,7 +1239,6 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
     CRUtil.getCourseListingById(listingId, okapiHeaders, vertxContext)
         .onComplete(getCLRes -> {
       try {
-        final CopiedItem entityCopiedItem = entity.getCopiedItem();
         final String courseListingLocation;
         if(!getCLRes.failed()) {
           courseListingLocation = getCLRes.result().getLocationId();
@@ -1316,7 +1314,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
                   //    && getCopiedItemsFuture.succeeded()) {
                   if(getCopiedItemsFuture.succeeded() && getCopiedItemsFuture.result() != null) {
                     JsonObject itemJson = getCopiedItemsFuture.result().getJsonObject("item");
-                    if(originalTemporaryLocationId.get() != null || writeType == writeType.PUT) {
+                    if(originalTemporaryLocationId.get() != null || writeType == CourseAPI.WriteType.PUT) {
                       itemJson.put("temporaryLocationId", originalTemporaryLocationId.get());
                     }
                     if(entity.getTemporaryLoanTypeId() != null) {

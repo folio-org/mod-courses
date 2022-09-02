@@ -126,7 +126,7 @@ public class CourseAPITest {
     vertx.deployVerticle(RestVerticle.class.getName(), options)
     .compose(deployCourseRes -> {
       restVerticleId = deployCourseRes;
-      return initTenant("diku", port);
+      return TestUtil.initTenant(WebClient.create(vertx), "diku", port, okapiUrl, new JsonArray());
     }).compose(initRes -> vertx.deployVerticle(OkapiMock.class.getName(), okapiOptions))
     .onSuccess(deployOkapiRes -> okapiVerticleId = deployOkapiRes)
     .onComplete(context.asyncAssertSuccess());
@@ -3861,27 +3861,6 @@ public class CourseAPITest {
     return TestUtil.doOkapiRequest(vertx, "/reset", POST, okapiHeaders, null,
         payload.encode(), 201, "Reset Okapi").mapEmpty();
   }
-
-  private static Future<Void> initTenant(String tenantId, int port) {
-    WebClient client = WebClient.create(vertx);
-    String url = "http://localhost:" + port + "/_/tenant";
-    JsonObject payload = new JsonObject()
-        .put("module_to", MODULE_TO)
-        .put("module_from", MODULE_FROM);
-    HttpRequest<Buffer> request = client.postAbs(url);
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    request.putHeader("X-Okapi-Url", okapiUrl);
-    request.putHeader("Content-Type", "application/json");
-    request.putHeader("Accept", "application/json, text/plain");
-    return request.sendJsonObject(payload)
-    .compose(result -> {
-      if (result.statusCode() != 204) {
-        return Future.failedFuture("Expected 204, got " + result.statusCode());
-      }
-      return Future.succeededFuture();
-    });
-  }
-
 }
 
 

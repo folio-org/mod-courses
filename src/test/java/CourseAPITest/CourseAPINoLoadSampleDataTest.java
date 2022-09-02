@@ -1,19 +1,14 @@
 package CourseAPITest;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static CourseAPITest.CourseAPITest.MODULE_FROM;
-import static CourseAPITest.CourseAPITest.MODULE_TO;
 import io.vertx.core.DeploymentOptions;
-import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import static io.vertx.core.http.HttpMethod.GET;
+
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import org.folio.postgres.testing.PostgresTesterContainer;
 import org.folio.rest.RestVerticle;
@@ -58,7 +53,8 @@ public class CourseAPINoLoadSampleDataTest extends CourseAPIWithSampleDataTest {
     .compose(x -> resetMockOkapi())
     .compose(x -> addSampleData())
     .onSuccess(x -> logger.info("Deployed verticle on port {}", port))
-    .compose(x -> initTenant("diku", port))
+    .compose(x -> TestUtil.initTenant(WebClient.create(vertx), "diku", port, okapiUrl,
+        new JsonArray()))
     .onComplete(context.asyncAssertSuccess());
   }
 
@@ -83,25 +79,6 @@ public class CourseAPINoLoadSampleDataTest extends CourseAPIWithSampleDataTest {
   @Override
   public void afterEach(TestContext context) {
     logger.info("After each");
-  }
-
-
-  protected static Future<Void> initTenant(String tenantId, int port) {
-    WebClient client = WebClient.create(vertx);
-    String url = "http://localhost:" + port + "/_/tenant";
-    JsonObject payload = new JsonObject()
-        .put("module_to", MODULE_TO)
-        .put("module_from", MODULE_FROM);
-    HttpRequest<Buffer> request = client.postAbs(url);
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    request.putHeader("X-Okapi-Url", okapiUrl);
-    request.putHeader("Content-Type", "application/json");
-    request.putHeader("Accept", "application/json, text/plain");
-    return request.sendJsonObject(payload)
-    .map(result -> {
-      assertThat(result.statusCode(), is(204));
-      return null;
-    });
   }
 
   //Tests
