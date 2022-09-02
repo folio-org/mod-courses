@@ -185,12 +185,6 @@ public class CourseAPITest {
   }
 
   @Test
-  public void dummyTest(TestContext context) {
-    Async async = context.async();
-    async.complete();
-  }
-
-  @Test
   public void testOkapiReset(TestContext context) {
     Async async = context.async();
     JsonObject payload = new JsonObject().put("reset", true);

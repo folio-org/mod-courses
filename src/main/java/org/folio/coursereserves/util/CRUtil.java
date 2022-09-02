@@ -224,6 +224,7 @@ public class CRUtil {
       if (itemJson.containsKey("copyNumber")) {
         copiedItem.setCopy(itemJson.getString("copyNumber"));
       } else if (itemJson.containsKey("copyNumbers")) {
+        // copyNumbers were removed with item-storage 8.0 / keeping for now
         copiedItem.setCopy(itemJson.getJsonArray("copyNumbers").getString(0));
       }
     } catch (Exception e) {

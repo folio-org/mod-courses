@@ -116,4 +116,31 @@ public class UtilTest {
     String expandDate = CRUtil.UTCFromLocalDate(localDate);
     assertEquals(expandDate, localDate);
   }
+
+  @Test
+  public void populateReserveCopiedItemFromJson1() {
+    Reserve reserve = new Reserve();
+    CRUtil.populateReserveCopiedItemFromJson(reserve,
+        new JsonObject()
+            .put("instance", new JsonObject()
+                .put("title", "my title"))
+            .put("holdings", new JsonObject().put("id", "1"))
+            .put("item", new JsonObject()
+                .put("copyNumbers", true))
+    );
+  }
+
+  @Test
+  public void populateReserveCopiedItemFromJson2() {
+    Reserve reserve = new Reserve();
+    CRUtil.populateReserveCopiedItemFromJson(reserve,
+        new JsonObject()
+            .put("instance", new JsonObject()
+                .put("title", "my title"))
+            .put("holdings", new JsonObject().put("id", "1"))
+            .put("item", new JsonObject()
+                .put("copyNumbers", new JsonArray().add("2")))
+    );
+  }
+
 }
