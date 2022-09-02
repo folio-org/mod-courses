@@ -140,7 +140,9 @@ public class UtilTest {
                 .put("title", "my title"))
             .put("holdings", new JsonObject().put("id", "1"))
             .put("item", new JsonObject()
-                .put("copyNumbers", new JsonArray().add("2")))
+                .put("copyNumbers", new JsonArray().add("2"))
+                .put("electronicAccess", "1")
+            )
     );
     assertEquals("2", reserve.getCopiedItem().getCopy());
   }
