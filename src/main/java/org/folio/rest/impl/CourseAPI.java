@@ -1001,15 +1001,15 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
         if (mutateReply.failed()) {
           String message = logAndSaveError(mutateReply.cause());
           asyncResultHandler.handle(Future
-              .succeededFuture(DeleteCoursereservesCoursesResponse.respond500WithTextPlain(getErrorResponse(message))));
+              .succeededFuture(DeleteCoursereservesReservesResponse.respond500WithTextPlain(getErrorResponse(message))));
         } else {
-          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesCoursesResponse.noContent().build()));
+          asyncResultHandler.handle(Future.succeededFuture(DeleteCoursereservesReservesResponse.noContent().build()));
         }
       });
     } catch (Exception e) {
       String message = logAndSaveError(e);
       asyncResultHandler.handle(Future
-          .succeededFuture(DeleteCoursereservesCoursesResponse.respond500WithTextPlain(getErrorResponse(message))));
+          .succeededFuture(DeleteCoursereservesReservesResponse.respond500WithTextPlain(getErrorResponse(message))));
     }
   }
 
