@@ -7,7 +7,9 @@ Version 2.0. See the file "[LICENSE](LICENSE)" for more information.
 
 ## Introduction
 
-Backend CRUD storage module to support the Course Reserves functionality
+Backend CRUD storage module to support the Course Reserves functionality.
+
+See [overview](ramls/overview.md) for more information.
 
 ## Prerequisites
 
