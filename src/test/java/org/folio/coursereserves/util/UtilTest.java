@@ -2,11 +2,12 @@ package org.folio.coursereserves.util;
 
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.rest.impl.CourseAPI;
 import org.folio.rest.jaxrs.model.LocationObject;
 import org.folio.rest.jaxrs.model.Reserf;
@@ -19,7 +20,7 @@ import org.junit.Test;
 
 public class UtilTest {
 
-  public static final Logger logger = LoggerFactory.getLogger(UtilTest.class);
+  public static final Logger logger = LogManager.getLogger(UtilTest.class);
 
   @Test
   public void testPojoFromJson() throws Exception {
@@ -115,4 +116,35 @@ public class UtilTest {
     String expandDate = CRUtil.UTCFromLocalDate(localDate);
     assertEquals(expandDate, localDate);
   }
+
+  @Test
+  public void populateReserveCopiedItemFromJson1() {
+    Reserve reserve = new Reserve();
+    CRUtil.populateReserveCopiedItemFromJson(reserve,
+        new JsonObject()
+            .put("instance", new JsonObject()
+                .put("title", "my title"))
+            .put("holdings", new JsonObject().put("id", "1"))
+            .put("item", new JsonObject()
+                .put("copyNumbers", true))
+    );
+    assertNull(reserve.getCopiedItem().getCopy());
+  }
+
+  @Test
+  public void populateReserveCopiedItemFromJson2() {
+    Reserve reserve = new Reserve();
+    CRUtil.populateReserveCopiedItemFromJson(reserve,
+        new JsonObject()
+            .put("instance", new JsonObject()
+                .put("title", "my title"))
+            .put("holdings", new JsonObject().put("id", "1"))
+            .put("item", new JsonObject()
+                .put("copyNumbers", new JsonArray().add("2"))
+                .put("electronicAccess", "1")
+            )
+    );
+    assertEquals("2", reserve.getCopiedItem().getCopy());
+  }
+
 }

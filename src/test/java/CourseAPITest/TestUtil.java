@@ -7,19 +7,23 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import static CourseAPITest.CourseAPITest.MODULE_FROM;
+import static CourseAPITest.CourseAPITest.MODULE_TO;
 
 
 public class TestUtil {
   private static HttpClient httpClient = null;
-  private static final Logger logger = LoggerFactory.getLogger(TestUtil.class.getClass()
-      .getName());
+  private static final Logger logger = LogManager.getLogger(TestUtil.class);
 
   static class WrappedResponse {
     private String explanation;
@@ -126,33 +130,6 @@ public class TestUtil {
             (String)entry.getKey(), (String)entry.getValue()));
       }
     }
-    /*
-    //standard exception handler
-    request.exceptionHandler(e -> { future.fail(e); });
-    request.handler( req -> {
-      req.bodyHandler(buf -> {
-        String explainString = "(no explanation)";
-        if(explanation != null) { explainString = explanation; }
-        if(expectedCode != null && expectedCode != req.statusCode()) {
-          future.fail(method.toString() + " to " + url + " failed. Expected status code "
-                  + expectedCode + ", got status code " + req.statusCode() + ": "
-                  + buf.toString() + " | " + explainString);
-        } else {
-          System.out.println("Got status code " + req.statusCode() + " with payload of: " + buf.toString() + " | " + explainString);
-          WrappedResponse wr = new WrappedResponse(explanation, req.statusCode(), buf.toString(), req);
-          future.complete(wr);
-        }
-      });
-    });
-    System.out.println("Sending " + method.toString() + " request to url '"+
-              url + " with payload: " + payload + "'\n");
-    if(method == HttpMethod.PUT || method == HttpMethod.POST) {
-      request.end(payload);
-    } else {
-      request.end();
-    }
-    return future;
-    */
     return wrapRequestResponse(request, payload, url, method, expectedCode, explanation);
   }
 
@@ -182,8 +159,8 @@ public class TestUtil {
                   + responseString + " | " + explainString;
             throw new RuntimeException(message);
           } else {
-            logger.info("Got status code " + result.statusCode() + " with payload of: "
-                + responseString + " | " + explainString);
+            logger.info("Got status code {} with payload of: {} | {}",
+              result.statusCode(), responseString, explainString);
             WrappedResponse wr = new WrappedResponse(explanation, result.statusCode(),
                 responseString, result);
             promise.complete(wr);
@@ -195,11 +172,36 @@ public class TestUtil {
       }
     });
 
-    logger.info("Sending " + method.toString() + " request to url '"+
-              uri + " with payload: " + payload + "'\n");
-
+    logger.info("Sending {} request to url {} with payload {}\n",
+        method.toString(), uri, payload);
     return promise.future();
 
+  }
+
+  private static Future<Void> initTenantWait(WebClient client, String tenantId, String url) {
+    return client
+        .getAbs(url).addQueryParam("wait", "10000")
+        .putHeader("X-Okapi-Tenant", tenantId)
+        .expect(ResponsePredicate.SC_OK)
+        .send().mapEmpty();
+  }
+
+  public static Future<Void> initTenant(WebClient client, String tenantId, int port,
+      String okapiUrl, JsonArray parameters) {
+    String url = "http://localhost:" + port + "/_/tenant";
+    JsonObject payload = new JsonObject()
+        .put("module_to", MODULE_TO)
+        .put("module_from", MODULE_FROM)
+        .put("parameters", parameters);
+    return client.postAbs(url)
+        .putHeader("X-Okapi-Tenant", tenantId)
+        .putHeader("X-Okapi-Url", okapiUrl)
+        .putHeader("X-Okapi-Url-To", "http://localhost:" + port)
+        .expect(ResponsePredicate.SC_CREATED)
+        .sendJsonObject(payload)
+        .compose(result ->
+            initTenantWait(client, tenantId,
+                "http://localhost:" + port + result.getHeader("Location")));
   }
 }
 

@@ -1,9 +1,8 @@
 
 package CourseAPITest;
 
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import java.util.UUID;
+
 import org.folio.rest.impl.CourseAPI;
 import org.folio.rest.jaxrs.model.CopyrightStatusObject;
 import org.folio.rest.jaxrs.model.CopyrightTracking;
@@ -17,8 +16,6 @@ import org.junit.Test;
 
 
 public class CourseAPIUnitTest {
-  public static final Logger logger = LoggerFactory.getLogger(CourseAPIUnitTest.class);
-
   @Test
   public void testScrub() {
     CourseListing courseListing = new CourseListing();

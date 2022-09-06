@@ -18,8 +18,6 @@ import static io.vertx.core.http.HttpMethod.POST;
 import static io.vertx.core.http.HttpMethod.PUT;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
@@ -34,6 +32,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.coursereserves.util.CRUtil;
 import org.folio.postgres.testing.PostgresTesterContainer;
 import org.folio.rest.RestVerticle;
@@ -65,7 +65,7 @@ public class CourseAPITest {
   static int port;
   static int okapiPort;
   private static Vertx vertx;
-  private static final Logger logger = LoggerFactory.getLogger(CourseAPITest.class);
+  private static final Logger logger = LogManager.getLogger(CourseAPITest.class);
   public static String baseUrl;
   public static String okapiUrl;
   public final static String COURSE_LISTING_1_ID = UUID.randomUUID().toString();
@@ -126,7 +126,7 @@ public class CourseAPITest {
     vertx.deployVerticle(RestVerticle.class.getName(), options)
     .compose(deployCourseRes -> {
       restVerticleId = deployCourseRes;
-      return initTenant("diku", port);
+      return TestUtil.initTenant(WebClient.create(vertx), "diku", port, okapiUrl, new JsonArray());
     }).compose(initRes -> vertx.deployVerticle(OkapiMock.class.getName(), okapiOptions))
     .onSuccess(deployOkapiRes -> okapiVerticleId = deployOkapiRes)
     .onComplete(context.asyncAssertSuccess());
@@ -182,12 +182,6 @@ public class CourseAPITest {
     .compose(f -> deleteProcessingStatuses())
     .compose(f -> resetMockOkapi())
     .onComplete(context.asyncAssertSuccess());
-  }
-
-  @Test
-  public void dummyTest(TestContext context) {
-    Async async = context.async();
-    async.complete();
   }
 
   @Test
@@ -784,7 +778,7 @@ public class CourseAPITest {
                     context.fail(getItemRes.cause());
                   } else {
                     JsonObject getItemJson = getItemRes.result().getJson();
-                    logger.info("Returned item Json is " + getItemJson.encode());
+                    logger.info("Returned item Json is {}", getItemJson.encode());
                     Exception fail = null;
                     try {
                       context.assertNull(getItemJson.getString("temporaryLocationId"));
@@ -3861,27 +3855,6 @@ public class CourseAPITest {
     return TestUtil.doOkapiRequest(vertx, "/reset", POST, okapiHeaders, null,
         payload.encode(), 201, "Reset Okapi").mapEmpty();
   }
-
-  private static Future<Void> initTenant(String tenantId, int port) {
-    WebClient client = WebClient.create(vertx);
-    String url = "http://localhost:" + port + "/_/tenant";
-    JsonObject payload = new JsonObject()
-        .put("module_to", MODULE_TO)
-        .put("module_from", MODULE_FROM);
-    HttpRequest<Buffer> request = client.postAbs(url);
-    request.putHeader("X-Okapi-Tenant", tenantId);
-    request.putHeader("X-Okapi-Url", okapiUrl);
-    request.putHeader("Content-Type", "application/json");
-    request.putHeader("Accept", "application/json, text/plain");
-    return request.sendJsonObject(payload)
-    .compose(result -> {
-      if (result.statusCode() != 204) {
-        return Future.failedFuture("Expected 204, got " + result.statusCode());
-      }
-      return Future.succeededFuture();
-    });
-  }
-
 }
 
 
