@@ -155,7 +155,7 @@ public class CRUtil {
         lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
             .onComplete(inventoryRes -> {
           if(inventoryRes.failed()) {
-            logger.error("Unable to do inventory lookup: {}", inventoryRes.cause().getLocalizedMessage());
+            logger.error("Unable to do inventory lookup: {}", inventoryRes.cause().getMessage());
             promise.fail(inventoryRes.cause());
           } else {
             try {
@@ -439,7 +439,7 @@ public class CRUtil {
             }
           }
         } catch(Exception e) {
-          promise.fail("Error getting result " + e.getLocalizedMessage());
+          promise.fail("Error getting result " + e.getMessage());
         }
       } else {
         promise.fail(res.cause());
@@ -743,7 +743,7 @@ public class CRUtil {
         Method getMethod = sourcePojo.getClass().getMethod(getName);
         method.invoke(destinationPojo, getMethod.invoke(sourcePojo));
       } catch(Exception e) {
-        logger.error(e.getLocalizedMessage());
+        logger.error(e.getMessage());
       }
     }
   }
