@@ -34,6 +34,7 @@ import static org.folio.rest.impl.CourseAPI.PROCESSING_STATUSES_TABLE;
 import static org.folio.rest.impl.CourseAPI.RESERVES_TABLE;
 import static org.folio.rest.impl.CourseAPI.TERMS_TABLE;
 
+import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.rest.jaxrs.model.Contributor;
 import org.folio.rest.jaxrs.model.CopiedItem;
 import org.folio.rest.jaxrs.model.CopyrightStatusObject;
@@ -115,86 +116,50 @@ public class CRUtil {
 
   public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
-    Promise<String> itemIdPromise = Promise.promise();
     String barcode;
-    if(reserve.getCopiedItem() != null) {
+    if (reserve.getCopiedItem() != null) {
       barcode = reserve.getCopiedItem().getBarcode();
     } else {
       barcode = null;
     }
     String itemId = reserve.getItemId();
-    if(itemId != null && barcode == null) {
-      itemIdPromise.complete(itemId);
-    } else if(barcode != null) {
-      lookupItemByBarcode(barcode, okapiHeaders, context)
-          .onComplete(barcodeItemLookupRes -> {
-        if(barcodeItemLookupRes.failed()) {
-          itemIdPromise.fail(barcodeItemLookupRes.cause());
-        } else {
-          if(barcodeItemLookupRes.result() != null) {
-            itemIdPromise.complete(barcodeItemLookupRes.result().getString("id"));
-          } else {
-            itemIdPromise.fail("No item found for barcode " + barcode);
-          }
+    Future<String> itemIdFuture;
+    if (itemId != null && barcode == null) {
+      itemIdFuture = Future.succeededFuture(itemId);
+    } else if (barcode != null) {
+      itemIdFuture = lookupItemByBarcode(barcode, okapiHeaders, context).map(barcodeItemLookupRes -> {
+        if (barcodeItemLookupRes == null) {
+          throw new RuntimeException("No item found for barcode " + barcode);
         }
+        return barcodeItemLookupRes.getString("id");
       });
     } else {
-      promise.fail("Must provide item id or item barcode to populate copied items");
-      return promise.future();
+      return Future.failedFuture("Must provide item id or item barcode to populate copied items");
     }
-    itemIdPromise.future().onComplete(itemIdRes -> {
-      if(itemIdRes.failed()) {
-        logger.error("Failed to get item id {}", itemIdRes.cause().getMessage());
-        promise.fail(itemIdRes.cause());
-      } else {
-        reserve.setItemId(itemIdRes.result());
-        String retrievedItemId = itemIdRes.result();
-        logger.info("Looking up information for item {} from inventory module",
-            retrievedItemId);
-        lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
-            .onComplete(inventoryRes -> {
-          if(inventoryRes.failed()) {
-            logger.error("Unable to do inventory lookup: {}", inventoryRes.cause().getMessage());
-            promise.fail(inventoryRes.cause());
-          } else {
-            try {
-              logger.info("Attempting to populate copied items with inventory lookup for item id {}",
-                  retrievedItemId);
-              populateReserveCopiedItemFromJson(reserve, inventoryRes.result());
-              promise.complete(inventoryRes.result());
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          }
-        });
-      }
+    return itemIdFuture.compose(itemIdRes -> {
+      reserve.setItemId(itemIdRes);
+      String retrievedItemId = itemIdRes;
+      logger.info("Looking up information for item {} from inventory module",
+          retrievedItemId);
+      return lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
+          .map(inventoryRes -> {
+            logger.info("Attempting to populate copied items with inventory lookup for item id {}",
+                retrievedItemId);
+            populateReserveCopiedItemFromJson(reserve, inventoryRes);
+            return inventoryRes;
+          });
     });
-    return promise.future();
   }
 
   public static Future<List<Reserve>> expandListOfReserves(List<Reserve> listOfReserves,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Reserve>> promise = Promise.promise();
-    List<Future> expandedReserveFutureList = new ArrayList<>();
-    for(Reserve reserve : listOfReserves) {
-      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(),
-          okapiHeaders, context, true));
+    List<Future<Reserve>> expandedReserveFutureList = new ArrayList<>();
+    for (Reserve reserve : listOfReserves) {
+      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(), okapiHeaders, context, true));
     }
-    CompositeFuture compositeFuture = CompositeFuture.all(expandedReserveFutureList);
-    compositeFuture.onComplete(expandReservesRes -> {
-      if(expandReservesRes.failed()) {
-        promise.fail(expandReservesRes.cause());
-      } else {
-        List<Reserve> newListOfReserves = new ArrayList<>();
-        for( Future reserveFuture : expandedReserveFutureList ) {
-          Future<Reserve> f = (Future<Reserve>)reserveFuture;
-          newListOfReserves.add(f.result());
-        }
-        promise.complete(newListOfReserves);
-      }
-    });
-    return promise.future();
+    return GenericCompositeFuture
+        .all(expandedReserveFutureList)
+        .map(expandReservesRes -> expandReservesRes.list());
   }
 
   public static String getStringValueFromObjectArray(String fieldName, JsonArray array) {
@@ -763,7 +728,7 @@ public class CRUtil {
     logger.info("Requesting instructor records with criterion: {}", criterion);
     return postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion, true).map(res -> {
       List<Instructor> instructorList = new ArrayList<>();
-      for(Instructor instructor : res.getResults()) {
+      for (Instructor instructor : res.getResults()) {
         instructorList.add(instructor);
       }
       return instructorList;
@@ -814,7 +779,6 @@ public class CRUtil {
 
   public static Future<CopyrightStatus> lookupCopyrightStatus(String copyrightStatusId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CopyrightStatus> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
     return postgresClient.getById(COPYRIGHT_STATUSES_TABLE, copyrightStatusId,
         CopyrightStatus.class);
@@ -823,7 +787,7 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     Promise<List<Course>> promise = Promise.promise();
     List<Future> expandedCourseFutureList = new ArrayList<>();
-    for(Course course : listOfCourses) {
+    for (Course course : listOfCourses) {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
     CompositeFuture compositeFuture = CompositeFuture.all(expandedCourseFutureList);
