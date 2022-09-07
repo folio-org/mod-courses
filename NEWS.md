@@ -1,3 +1,6 @@
+## 1.4.5 2022-09-07
+* Fix socket leak ([MODCR-95](https://issues.folio.org/browse/MODCR-95))
+
 ## 1.4.4 2022-09-06
 * Use Log4j2 ([MODCR-91](https://issues.folio.org/browse/MODCR-91))
 * Update to RMB 34.1.2, Vert.x 4.3.3 ([MODCR-90](https://issues.folio.org/browse/MODCR-90))
