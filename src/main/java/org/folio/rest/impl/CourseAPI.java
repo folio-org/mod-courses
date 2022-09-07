@@ -4,7 +4,6 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -1321,26 +1320,15 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
 
   public Future<Boolean> checkUniqueReserveForListing(String courseListingId, String itemId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Boolean> promise = Promise.promise();
     PostgresClient postgresClient = getPGClientFromHeaders(context, okapiHeaders);
     String query = "courseListingId=" + courseListingId + " AND itemId=" + itemId;
     try {
       CQLWrapper cql = CourseAPI.getCQL(query, 0, 1, RESERVES_TABLE);
-      getItems(RESERVES_TABLE, Reserve.class, cql, postgresClient).onComplete(getReply -> {
-        if (getReply.failed()) {
-          promise.fail(getReply.cause());
-        } else {
-          if (getReply.result().getResultInfo().getTotalRecords() > 0) {
-            promise.complete(true);
-          } else {
-            promise.complete(false);
-          }
-        }
-      });
+      return getItems(RESERVES_TABLE, Reserve.class, cql, postgresClient).map(getReply ->
+          getReply.getResultInfo().getTotalRecords() > 0);
     } catch (Exception e) {
-      promise.fail(e);
+      return Future.failedFuture(e);
     }
-    return promise.future();
   }
 
 }
