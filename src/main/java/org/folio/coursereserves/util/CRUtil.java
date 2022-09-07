@@ -34,6 +34,7 @@ import static org.folio.rest.impl.CourseAPI.RESERVES_TABLE;
 import static org.folio.rest.impl.CourseAPI.TERMS_TABLE;
 
 import org.folio.okapi.common.GenericCompositeFuture;
+import org.folio.okapi.common.WebClientFactory;
 import org.folio.rest.jaxrs.model.Contributor;
 import org.folio.rest.jaxrs.model.CopiedItem;
 import org.folio.rest.jaxrs.model.CopyrightStatusObject;
@@ -303,7 +304,7 @@ public class CRUtil {
   public static Future<JsonObject> makeOkapiRequest(Vertx vertx,
       Map<String, String> okapiHeaders, String requestPath, HttpMethod method,
       Map<String, String> extraHeaders, String payload, Integer expectedCode) {
-    WebClient client = WebClient.create(vertx);
+    WebClient client = WebClientFactory.getWebClient(vertx);
     MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     MultiMap originalHeaders = MultiMap.caseInsensitiveMultiMap();
 
