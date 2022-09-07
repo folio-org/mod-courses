@@ -690,8 +690,9 @@ public class CRUtil {
     for (Course course : listOfCourses) {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
-    CompositeFuture compositeFuture = GenericCompositeFuture.all(expandedCourseFutureList);
-    return compositeFuture.map(CompositeFuture::list);
+    return GenericCompositeFuture
+        .all(expandedCourseFutureList)
+        .map(CompositeFuture::list);
   }
 
   public static Future<Course> getExpandedCourse(Course course,
