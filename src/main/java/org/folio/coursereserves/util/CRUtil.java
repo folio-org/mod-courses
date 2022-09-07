@@ -659,35 +659,15 @@ public class CRUtil {
   /* Basic lookup for courselisting, wrapped in a future */
   public static Future<CourseListing> getCourseListingById(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CourseListing> promise = Promise.promise();
     logger.info("Looking up course listing for id '{}'",courseListingId);
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COURSE_LISTINGS_TABLE, courseListingId, CourseListing.class,
-        courseListingReply -> {
-      if(courseListingReply.failed()) {
-        promise.fail(courseListingReply.cause());
-      } else if(courseListingReply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(courseListingReply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COURSE_LISTINGS_TABLE, courseListingId, CourseListing.class);
   }
 
   public static Future<Reserve> getReserveById(String reserveId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Reserve> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(RESERVES_TABLE, reserveId, Reserve.class,
-        reserveReply -> {
-      if(reserveReply.failed()) {
-        promise.fail(reserveReply.cause());
-      } else {
-        promise.complete(reserveReply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(RESERVES_TABLE, reserveId, Reserve.class);
   }
 
   public static void populatePojoFromJson(Object pojo, JsonObject json,
@@ -750,213 +730,94 @@ public class CRUtil {
 
   public static Future<JsonObject> lookupLocation(String locationId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String locationPath = LOCATIONS_ENDPOINT + "/" + locationId;
     logger.debug("Making request for location at {}", locationPath);
-    makeOkapiRequest(context.owner(), okapiHeaders, locationPath, HttpMethod.GET,
-        null, null, 200).onComplete(locationRes-> {
-      if (locationRes.failed()) {
-        logger.error("Location request failed: {}", locationRes.cause().getMessage());
-        promise.fail(locationRes.cause());
-      } else {
-        logger.debug("Location request succeeded");
-        JsonObject locationJson = locationRes.result();
-        promise.complete(locationJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, locationPath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<JsonObject> lookupLoanType(String loanTypeId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String loanTypePath = LOAN_TYPES_ENDPOINT + "/" + loanTypeId;
     logger.debug("Making request for location at {}", loanTypePath);
-    makeOkapiRequest(context.owner(), okapiHeaders, loanTypePath, HttpMethod.GET,
-        null, null, 200).onComplete(loanTypeRes-> {
-      if(loanTypeRes.failed()) {
-        logger.error("Loan type request failed");
-        promise.fail(loanTypeRes.cause());
-      } else {
-        logger.debug("Loan type request succeeded");
-        JsonObject loanTypeJson = loanTypeRes.result();
-        promise.complete(loanTypeJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, loanTypePath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<JsonObject> lookupServicepoint(String servicepointId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String servicePointPath = SERVICE_POINTS_ENDPOINT + "/" + servicepointId;
     logger.debug("Making request for servicepoint at {}", servicePointPath);
-    makeOkapiRequest(context.owner(), okapiHeaders, servicePointPath,
-        HttpMethod.GET, null, null, 200).onComplete(spRes -> {
-      if(spRes.failed()) {
-        promise.fail(spRes.cause());
-      } else {
-        JsonObject spJson = spRes.result();
-        promise.complete(spJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, servicePointPath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<List<Instructor>> lookupInstructorsForCourseListing(
-      String courseListingId, Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Instructor>> promise = Promise.promise();
-    try {
-      PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-      Criteria idCrit = new Criteria();
-      idCrit.addField("'courseListingId'");
-      idCrit.setOperation("=");
-      idCrit.setVal(courseListingId);
-      Criterion criterion = new Criterion(idCrit);
-      logger.info("Requesting instructor records with criterion: {}", criterion);
-      postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion,
-          true, false, res -> {
-        if(res.failed()) {
-          promise.fail(res.cause());
-        } else {
-          List<Instructor> instructorList = new ArrayList<>();
-          for(Instructor instructor : res.result().getResults()) {
-            instructorList.add(instructor);
-          }
-          promise.complete(instructorList);
-        }
-      });
-    } catch(Exception e) {
-      promise.fail(e);
-    }
-    return promise.future();
+          String courseListingId, Map<String, String> okapiHeaders, Context context) {
+    PostgresClient postgresClient = getPgClient(okapiHeaders, context);
+    Criteria idCrit = new Criteria();
+    idCrit.addField("'courseListingId'");
+    idCrit.setOperation("=");
+    idCrit.setVal(courseListingId);
+    Criterion criterion = new Criterion(idCrit);
+    logger.info("Requesting instructor records with criterion: {}", criterion);
+    return postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion, true).map(res -> {
+      List<Instructor> instructorList = new ArrayList<>();
+      for(Instructor instructor : res.getResults()) {
+        instructorList.add(instructor);
+      }
+      return instructorList;
+    });
   }
 
   public static Future<Void> updateCourseListingInstructorCache(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Void> promise = Promise.promise();
-    lookupInstructorsForCourseListing(courseListingId,
-        okapiHeaders, context).onComplete(instructorRes -> {
-      if(instructorRes.failed()) {
-        promise.fail(instructorRes.cause());
-      } else {
-        getCourseListingById(courseListingId, okapiHeaders, context)
-            .onComplete(getRes -> {
-          if(getRes.failed()) {
-            promise.fail(getRes.cause());
-          } else {
-            try {
-              CourseListing courseListing = getRes.result();
-              List<Instructor> instructorList = instructorRes.result();
-              logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
-              courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
-                  instructorList));
-              PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-              postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId,
-                  putReply -> {
-                if(putReply.failed()) {
-                  promise.fail(putReply.cause());
-                } else {
-                  promise.complete();
-                }
-              });
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          }
-        });
-      }
-    });
-    return promise.future();
+    return lookupInstructorsForCourseListing(courseListingId,
+        okapiHeaders, context).compose(instructorRes ->
+        getCourseListingById(courseListingId, okapiHeaders, context).compose(getRes -> {
+          CourseListing courseListing = getRes;
+          List<Instructor> instructorList = instructorRes;
+          logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
+          courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
+              instructorList));
+          PostgresClient postgresClient = getPgClient(okapiHeaders, context);
+          return postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId)
+              .mapEmpty();
+        })
+    );
   }
 
   public static Future<Term> lookupTerm(String termId,
       Map<String, String> okapiHeaders, Context context) {;
-    Promise<Term> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(TERMS_TABLE, termId, Term.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete();
-      } else {
-        Term result = reply.result();
-        promise.complete(result);
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(TERMS_TABLE, termId, Term.class);
   }
 
     public static Future<Department> lookupDepartment(String departmentId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Department> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(DEPARTMENTS_TABLE, departmentId, Department.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        Department result = reply.result();
-        promise.complete(result);
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(DEPARTMENTS_TABLE, departmentId, Department.class);
   }
 
   public static Future<CourseType> lookupCourseType(String courseTypeId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CourseType> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COURSE_TYPES_TABLE, courseTypeId, CourseType.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COURSE_TYPES_TABLE, courseTypeId, CourseType.class);
   }
 
   public static Future<ProcessingStatus> lookupProcessingStatus(String processingStatusId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<ProcessingStatus> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(PROCESSING_STATUSES_TABLE, processingStatusId,
-        ProcessingStatus.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(PROCESSING_STATUSES_TABLE, processingStatusId,
+        ProcessingStatus.class);
   }
 
   public static Future<CopyrightStatus> lookupCopyrightStatus(String copyrightStatusId,
       Map<String, String> okapiHeaders, Context context) {
     Promise<CopyrightStatus> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COPYRIGHT_STATUSES_TABLE, copyrightStatusId,
-        CopyrightStatus.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COPYRIGHT_STATUSES_TABLE, copyrightStatusId,
+        CopyrightStatus.class);
   }
   public static Future<List<Course>> expandListOfCourses(List<Course> listOfCourses,
       Map<String, String> okapiHeaders, Context context) {
@@ -987,7 +848,6 @@ public class CRUtil {
     Future<CourseListing> courseListingFuture;
     Course newCourse;
     try {
-      PostgresClient postgresClient = getPgClient(okapiHeaders, context);
       newCourse = copyCourse(course);
       if(course.getCourseListingId() == null) {
         courseListingFuture = Future.succeededFuture();
@@ -1220,7 +1080,7 @@ public class CRUtil {
       return localDate + "T00:00:00Z";
     } else {
       return localDate;
-    }    
+    }
   }
 }
 
