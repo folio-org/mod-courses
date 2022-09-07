@@ -1043,66 +1043,29 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   }
 
   public <T> Future<Results<T>> getItems(String tableName, Class<T> clazz, CQLWrapper cql, PostgresClient pgClient) {
-    Promise<Results<T>> promise = Promise.promise();
-    pgClient.get(tableName, clazz, new String[] { "*" }, cql, true, true, getReply -> {
-      if (getReply.failed()) {
-        promise.fail(getReply.cause());
-      } else {
-        promise.complete(getReply.result());
-      }
-    });
-    return promise.future();
+    return pgClient.get(tableName, clazz, new String[]{"*"}, cql, true);
   }
 
   public Future<Void> deleteItem(String tableName, String id, Map<String, String> okapiHeaders, Context vertxContext) {
-    Promise<Void> promise = Promise.promise();
     PostgresClient pgClient = getPGClientFromHeaders(vertxContext, okapiHeaders);
-    pgClient.delete(tableName, id, deleteReply -> {
-      if (deleteReply.failed()) {
-        promise.fail(deleteReply.cause());
-      } else {
-        promise.complete();
-      }
-    });
-    return promise.future();
+    return pgClient.delete(tableName, id).mapEmpty();
   }
 
   // Handle deleting the reserve and removing the temporaryLocation set to the
   // associated item
   public Future<Void> deleteReserve(String reserveId, Map<String, String> okapiHeaders, Context vertxContext) {
-    Promise<Void> promise = Promise.promise();
-    CRUtil.getReserveById(reserveId, okapiHeaders, vertxContext).onComplete(getReserveRes -> {
-      if (getReserveRes.failed()) {
-        promise.fail(getReserveRes.cause());
-      } else {
-        try {
-          Reserve reserve = getReserveRes.result();
-          if (reserve.getItemId() == null) {
-            promise.complete();
-          } else {
-            resetItemTemporaryLocation(reserve.getItemId(),
-                okapiHeaders, vertxContext).onComplete(resetRes -> {
-              if (resetRes.failed()) {
-                logger.error("Unable to delete item '{}': {}",
-                    reserve.getItemId(), resetRes.cause().getMessage(), resetRes.cause());
-              }
-              deleteItem(RESERVES_TABLE, reserveId, okapiHeaders, vertxContext)
-                  .onComplete(deleteRes -> {
-                if(deleteRes.failed()) {
-                  promise.fail(deleteRes.cause());
-                } else {
-                  promise.complete();
-                }
-              });
-            });
-          }
-        } catch (Exception e) {
-          promise.fail(e);
-        }
+    return CRUtil.getReserveById(reserveId, okapiHeaders, vertxContext).compose(reserve -> {
+      if (reserve.getItemId() == null) {
+        return Future.succeededFuture();
       }
+      return resetItemTemporaryLocation(reserve.getItemId(), okapiHeaders, vertxContext)
+              .recover(x -> {
+                logger.error("Unable to delete item '{}': {}", reserve.getItemId(), x.getMessage(), x);
+                return Future.succeededFuture();
+              })
+              .compose(resetRes -> deleteItem(RESERVES_TABLE, reserveId, okapiHeaders, vertxContext))
+              .mapEmpty();
     });
-
-    return promise.future();
   }
 
   public Future<Void> resetItemTemporaryLocation(String itemId, Map<String, String> okapiHeaders,
