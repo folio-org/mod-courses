@@ -200,10 +200,10 @@ public class CRUtil {
       JsonArray eaHoldingsJsonArray = holdingsJson.getJsonArray("electronicAccess");
       String uri = getStringValueFromObjectArray("uri", eaItemJsonArray);
       String publicNote = getStringValueFromObjectArray("publicNote", eaItemJsonArray);
-      if(uri == null) {
+      if (uri == null) {
         uri = getStringValueFromObjectArray("uri", eaHoldingsJsonArray);
       }
-      if(publicNote == null) {
+      if (publicNote == null) {
         publicNote = getStringValueFromObjectArray("publicNote", eaHoldingsJsonArray);
       }
       copiedItem.setUri(uri);
@@ -212,26 +212,26 @@ public class CRUtil {
       logger.info("Unable to copy electronic access field from item: {}", e.getMessage());
     }
     String permanentLocationId = itemJson.getString("permanentLocationId");
-    if(permanentLocationId == null) {
+    if (permanentLocationId == null) {
       permanentLocationId = holdingsJson.getString("permanentLocationId");
     }
     copiedItem.setPermanentLocationId(permanentLocationId);
     copiedItem.setTemporaryLocationId(itemJson.getString("temporaryLocationId"));
     String callNumber = makeCallNumber(itemJson.getString("itemLevelCallNumberPrefix"),
         itemJson.getString("itemLevelCallNumber"), itemJson.getString("itemLevelCallNumberSuffix"));
-    if(callNumber == null) {
+    if (callNumber == null) {
       callNumber = makeCallNumber(holdingsJson.getString("callNumberPrefix"),
           holdingsJson.getString("callNumber"), holdingsJson.getString("callNumberSuffix"));
     }
     copiedItem.setCallNumber(callNumber);
     String temporaryLoanTypeId = itemJson.getString("temporaryLoanTypeId");
-    if(reserve.getTemporaryLoanTypeId() == null) {
+    if (reserve.getTemporaryLoanTypeId() == null) {
       reserve.setTemporaryLoanTypeId(temporaryLoanTypeId);
     }
     JsonArray contributors = instanceJson.getJsonArray("contributors");
-    if(contributors != null && contributors.size() > 0) {
+    if (contributors != null && contributors.size() > 0) {
       List<Contributor> contributorList = new ArrayList<>();
-      for(int i = 0; i < contributors.size(); i++) {
+      for (int i = 0; i < contributors.size(); i++) {
         JsonObject contributorJson = contributors.getJsonObject(i);
         Contributor contributor = new Contributor();
         contributor.setContributorNameTypeId(contributorJson.getString("contributorNameTypeId"));
@@ -245,9 +245,9 @@ public class CRUtil {
     }
 
     JsonArray publishers = instanceJson.getJsonArray("publication");
-    if(publishers != null && publishers.size() > 0) {
+    if (publishers != null && publishers.size() > 0) {
       List<Publication> publisherList = new ArrayList<>();
-      for(int i = 0; i < publishers.size(); i++) {
+      for (int i = 0; i < publishers.size(); i++) {
         JsonObject publisherJson = publishers.getJsonObject(i);
         Publication publication = new Publication();
         publication.setPlace(publisherJson.getString("place"));
@@ -263,164 +263,112 @@ public class CRUtil {
 
   public static Future<JsonObject> lookupItemHoldingsInstanceByItemId(String itemId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise promise = Promise.promise();
-    JsonObject result = new JsonObject();
     logger.info("Making request for item at {}/{}", ITEMS_ENDPOINT, itemId);
-    makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
-        HttpMethod.GET, null, null, 200).onComplete(itemRes -> {
-      if(itemRes.failed()) {
-        logger.error("Unable to lookup item by id {}", itemId);
-        promise.fail(itemRes.cause());
-      } else {
-        JsonObject itemJson = itemRes.result();
-        String holdingsId = itemJson.getString("holdingsRecordId");
-        result.put("item", itemJson);
-        logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
-        makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
-            HttpMethod.GET, null, null, 200).onComplete(holdingsRes -> {
-          if(holdingsRes.failed()) {
-            promise.fail(holdingsRes.cause());
-          } else {
-            JsonObject holdingsJson = holdingsRes.result();
-            String instanceId = holdingsJson.getString("instanceId");
-            result.put("holdings", holdingsJson);
-            logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
-            makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT
-                + "/" + instanceId, HttpMethod.GET, null, null, 200).onComplete(
-                instanceRes -> {
-              if(instanceRes.failed()) {
-                promise.fail(instanceRes.cause());
-              } else {
-                JsonObject instanceJson = instanceRes.result();
-                result.put("instance", instanceJson);
-                logger.info("Inventory lookup complete");
-                promise.complete(result);
-              }
-            });
-          }
+    return makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
+        HttpMethod.GET, null, null, 200).compose(itemJson -> {
+      JsonObject result = new JsonObject();
+      String holdingsId = itemJson.getString("holdingsRecordId");
+      result.put("item", itemJson);
+      logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
+      return makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
+          HttpMethod.GET, null, null, 200).compose(holdingsJson -> {
+        String instanceId = holdingsJson.getString("instanceId");
+        result.put("holdings", holdingsJson);
+        logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
+        return makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT
+            + "/" + instanceId, HttpMethod.GET, null, null, 200).map(instanceJson -> {
+              result.put("instance", instanceJson);
+              return result;
         });
-      }
+      });
     });
-    return promise.future();
   }
 
   public static Future<JsonObject> lookupUserAndGroupByUserId(String userId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String userPath = "/users/" + userId;
-    JsonObject result = new JsonObject();
-    makeOkapiRequest(context.owner(), okapiHeaders, userPath, HttpMethod.GET,
-        null, null, 200).onComplete(userRes -> {
-      try {
-        if(userRes.failed()) {
-          promise.fail(userRes.cause());
-        } else {
-          result.put("user", userRes.result());
-          String groupId = userRes.result().getString("patronGroup");
-          String groupPath = "/groups/" + groupId;
-          makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
-              null, null, 200).onComplete(groupRes -> {
-            try {
-              if(groupRes.failed()) {
-                promise.fail(groupRes.cause());
-              } else {
-                result.put("group", groupRes.result());
-                promise.complete(result);
-              }
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          });
-        }
-      } catch(Exception e) {
-        promise.fail(e);
-      }
+    return makeOkapiRequest(context.owner(), okapiHeaders, userPath, HttpMethod.GET,
+        null, null, 200).compose(userRes -> {
+      JsonObject result = new JsonObject();
+      result.put("user", userRes);
+      String groupId = userRes.getString("patronGroup");
+      String groupPath = "/groups/" + groupId;
+      return makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
+          null, null, 200).map(groupRes -> {
+        result.put("group", groupRes);
+        return result;
+      });
     });
-    return promise.future();
   }
 
   public static Future<JsonObject> makeOkapiRequest(Vertx vertx,
       Map<String, String> okapiHeaders, String requestPath, HttpMethod method,
       Map<String, String> extraHeaders, String payload, Integer expectedCode) {
-    Promise<JsonObject> promise = Promise.promise();
     WebClient client = WebClient.create(vertx);
     MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     MultiMap originalHeaders = MultiMap.caseInsensitiveMultiMap();
 
     originalHeaders.setAll(okapiHeaders);
     String okapiUrl = originalHeaders.get(OKAPI_URL_HEADER);
-    if(okapiUrl == null) {
-      promise.fail("No okapi URL found in headers");
-      return promise.future();
+    if (okapiUrl == null) {
+      return Future.failedFuture("No okapi URL found in headers");
     }
     String requestUrl = okapiUrl + requestPath;
-    if(originalHeaders.contains(OKAPI_TOKEN_HEADER)) {
+    if (originalHeaders.contains(OKAPI_TOKEN_HEADER)) {
       headers.add(OKAPI_TOKEN_HEADER, originalHeaders.get(OKAPI_TOKEN_HEADER));
     }
-    if(originalHeaders.contains(OKAPI_TENANT_HEADER)) {
+    if (originalHeaders.contains(OKAPI_TENANT_HEADER)) {
       headers.add(OKAPI_TENANT_HEADER, originalHeaders.get(OKAPI_TENANT_HEADER));
     }
     headers.add("content-type", "application/json");
     headers.add("accept", "application/json");
-    if(extraHeaders != null) {
-      for(Map.Entry<String, String> entry : extraHeaders.entrySet()) {
-        if(entry.getKey() != null && entry.getValue() != null) {
+    if (extraHeaders != null) {
+      for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
+        if (entry.getKey() != null && entry.getValue() != null) {
           headers.add(entry.getKey(), entry.getValue());
         }
       }
     }
     logger.debug("Creating request for url {}", requestUrl);
     HttpRequest<Buffer> request = client.requestAbs(method, requestUrl);
-    for(Map.Entry<String, String> entry : headers.entries()) {
+    for (Map.Entry<String, String> entry : headers.entries()) {
       String key = entry.getKey();
       String value = entry.getValue();
-      if( key != null && value != null) {
+      if ( key != null && value != null) {
         request.putHeader(key, value);
       }
     }
     Future<HttpResponse<Buffer>> sentRequestFuture;
-    if(method == HttpMethod.PUT || method == HttpMethod.POST ) {
+    if (method == HttpMethod.PUT || method == HttpMethod.POST ) {
       sentRequestFuture = request.sendBuffer(Buffer.buffer(payload));
     } else {
       sentRequestFuture = request.send();
     }
-    sentRequestFuture.onComplete(res -> {
-      if(res.succeeded()) {
-        try {
-          HttpResponse<Buffer> result = res.result();
-          String response = result.bodyAsString();
-          if(expectedCode != result.statusCode()) {
-            String message = String.format(
-                "Expected status code %s for %s request to url %s, got %s: %s",
-                expectedCode, method.toString(), requestUrl, result.statusCode(),
-                response);
-            logger.error(message);
-            promise.fail(message);
-          } else {
-            if(response != null && !response.isEmpty()) {
-              promise.complete(new JsonObject(response));
-            } else {
-              promise.complete(null);
-            }
-          }
-        } catch(Exception e) {
-          promise.fail("Error getting result " + e.getMessage());
-        }
+    return sentRequestFuture.compose(result -> {
+      String response = result.bodyAsString();
+      if (expectedCode != result.statusCode()) {
+        String message = String.format(
+            "Expected status code %s for %s request to url %s, got %s: %s",
+            expectedCode, method.toString(), requestUrl, result.statusCode(),
+            response);
+        logger.error(message);
+        return Future.failedFuture(message);
+      }
+      if (response != null && !response.isEmpty()) {
+        return Future.succeededFuture(new JsonObject(response));
       } else {
-        promise.fail(res.cause());
+        return Future.succeededFuture(null);
       }
     });
-
-    return promise.future();
   }
 
   public static Future<Reserve> lookupExpandedReserve(String reserveId,
       Map<String, String> okapiHeaders, Context context, Boolean expand) {
     Promise<Reserve> promise = Promise.promise();
     getReserveById(reserveId, okapiHeaders, context).onComplete(reserveRes -> {
-      if(reserveRes.failed()) {
+      if (reserveRes.failed()) {
         promise.fail(reserveRes.cause());
-      } else if(expand == false ||  reserveRes.result() == null ||
+      } else if (expand == false ||  reserveRes.result() == null ||
           reserveRes.result().getCopiedItem() == null) {
         promise.complete(reserveRes.result());
       } else {
@@ -431,14 +379,14 @@ public class CRUtil {
           Future<JsonObject> permLocationFuture = lookupLocation(
               reserve.getCopiedItem().getPermanentLocationId(), okapiHeaders, context);
           Future<ProcessingStatus> processingStatusFuture;
-          if(reserve.getProcessingStatusId() != null) {
+          if (reserve.getProcessingStatusId() != null) {
             processingStatusFuture = lookupProcessingStatus(
               reserve.getProcessingStatusId(), okapiHeaders, context);
           } else {
             processingStatusFuture = Future.failedFuture("No processing status id");
           }
           Future<CopyrightStatus> copyrightStatusFuture;
-          if(reserve.getCopyrightTracking() != null
+          if (reserve.getCopyrightTracking() != null
               && reserve.getCopyrightTracking().getCopyrightStatusId() != null) {
             copyrightStatusFuture = lookupCopyrightStatus(
             reserve.getCopyrightTracking().getCopyrightStatusId(), okapiHeaders,
@@ -447,7 +395,7 @@ public class CRUtil {
             copyrightStatusFuture = Future.failedFuture("No copyright tracking object");
           }
           Future<JsonObject> loanTypeFuture;
-          if(reserve.getTemporaryLoanTypeId() != null) {
+          if (reserve.getTemporaryLoanTypeId() != null) {
             loanTypeFuture = lookupLoanType(reserve.getTemporaryLoanTypeId(),
                 okapiHeaders, context);
           } else {
@@ -456,7 +404,7 @@ public class CRUtil {
           populateReserveForRetrieval(reserve, tempLocationFuture, permLocationFuture,
               processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
               .onComplete(populateRes -> {
-            if(populateRes.failed()) {
+            if (populateRes.failed()) {
               promise.fail(populateRes.cause());
             } else {
               promise.complete(reserve);
@@ -506,15 +454,15 @@ public class CRUtil {
     CompositeFuture compositeFuture = CompositeFuture.join(futureList);
     compositeFuture.onComplete(compRes -> {
       try {
-        if(reserve.getCopiedItem() != null) {
-          if(tempLocationFuture.succeeded()) {
+        if (reserve.getCopiedItem() != null) {
+          if (tempLocationFuture.succeeded()) {
             reserve.getCopiedItem().setTemporaryLocationObject(
                 temporaryLocationObjectFromJson(tempLocationFuture.result()));
           } else {
             logger.info("TemporaryLocationObject lookup failed {}",
                 tempLocationFuture.cause().getMessage());
           }
-          if(permLocationFuture.succeeded()) {
+          if (permLocationFuture.succeeded()) {
             reserve.getCopiedItem().setPermanentLocationObject(
                 temporaryLocationObjectFromJson(permLocationFuture.result()));
           } else {
@@ -524,17 +472,17 @@ public class CRUtil {
         } else {
           logger.info("No copied item field in reserve to populate");
         }
-        if(processingStatusFuture.succeeded()) {
+        if (processingStatusFuture.succeeded()) {
           ProcessingStatusObject pso = new ProcessingStatusObject();
           copyFields(pso, processingStatusFuture.result());
           reserve.setProcessingStatusObject(pso);
         }
-        if(copyrightStatusFuture.succeeded()) {
+        if (copyrightStatusFuture.succeeded()) {
           CopyrightStatusObject cso = new CopyrightStatusObject();
           copyFields(cso, copyrightStatusFuture.result());
           reserve.getCopyrightTracking().setCopyrightStatusObject(cso);
         }
-        if(loanTypeFuture.succeeded()) {
+        if (loanTypeFuture.succeeded()) {
           TemporaryLoanTypeObject tlto = temporaryLoanTypeObjectFromJson(
               loanTypeFuture.result());
           reserve.setTemporaryLoanTypeObject(tlto);
@@ -551,9 +499,9 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context, Boolean expandTerm) {
     Promise<CourseListing> promise = Promise.promise();
     getCourseListingById(courseListingId, okapiHeaders, context).onComplete(clRes -> {
-      if(clRes.failed()) {
+      if (clRes.failed()) {
         promise.fail(clRes.cause());
-      } else if(clRes.result() == null) {
+      } else if (clRes.result() == null) {
         promise.complete(null);
       } else {
         try {
@@ -566,22 +514,22 @@ public class CRUtil {
           Future<CourseType> coursetypeFuture;
           Future<JsonObject> locationFuture;
           Future<JsonObject> servicePointFuture;
-          if(expandTerm && termId != null) {
+          if (expandTerm && termId != null) {
             termFuture = lookupTerm(termId, okapiHeaders, context);
           } else {
             termFuture = Future.failedFuture("No lookup");
           }
-          if(expandTerm && courseTypeId != null) {
+          if (expandTerm && courseTypeId != null) {
             coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
           } else {
             coursetypeFuture = Future.failedFuture("No lookup");
           }
-          if(expandTerm && locationId != null) {
+          if (expandTerm && locationId != null) {
             locationFuture = lookupLocation(locationId, okapiHeaders, context);
           } else {
             locationFuture = Future.failedFuture("No lookup");
           }
-          if(expandTerm && servicepointId != null) {
+          if (expandTerm && servicepointId != null) {
             servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
           } else {
             servicePointFuture = Future.failedFuture("No lookup");
@@ -595,17 +543,17 @@ public class CRUtil {
           CompositeFuture compositeFuture = CompositeFuture.join(futureList);
           compositeFuture.onComplete(compRes -> {
             try {
-              if(termFuture.succeeded()) {
+              if (termFuture.succeeded()) {
                 courselisting.setTermObject(termObjectFromTerm(termFuture.result()));
               }
-              if(coursetypeFuture.succeeded()) {
+              if (coursetypeFuture.succeeded()) {
                 courselisting.setCourseTypeObject(courseTypeObjectFromCourseType(
                     coursetypeFuture.result()));
               }
-              if(locationFuture.succeeded()) {
+              if (locationFuture.succeeded()) {
                 courselisting.setLocationObject(locationObjectFromJson(locationFuture.result()));
               }
-              if(servicePointFuture.succeeded()) {
+              if (servicePointFuture.succeeded()) {
                 courselisting.setServicepointObject(servicepointObjectFromJson(servicePointFuture.result()));
               }
               promise.complete(courselisting);
@@ -638,23 +586,23 @@ public class CRUtil {
   public static void populatePojoFromJson(Object pojo, JsonObject json,
       List<PopulateMapping> mapList) throws NoSuchMethodException,
       IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-    for( PopulateMapping popMap : mapList ) {
+    for ( PopulateMapping popMap : mapList ) {
       Object value = null;
       Method method = null;
-      if(popMap.type.equals(ImportType.STRING)) {
+      if (popMap.type.equals(ImportType.STRING)) {
         value = json.getString(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, String.class);
-      } else if(popMap.type.equals(ImportType.INTEGER)) {
+      } else if (popMap.type.equals(ImportType.INTEGER)) {
         value = json.getInteger(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, Integer.class);
-      } else if(popMap.type.equals(ImportType.BOOLEAN)) {
+      } else if (popMap.type.equals(ImportType.BOOLEAN)) {
         value = json.getBoolean(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, Boolean.class);
-      } else if(popMap.type.equals(ImportType.STRINGLIST)) {
+      } else if (popMap.type.equals(ImportType.STRINGLIST)) {
         List<String> stringList = new ArrayList<>();
         JsonArray jsonArray = json.getJsonArray(popMap.fieldName);
-        if(jsonArray != null) {
-          for(Object ob : jsonArray) {
+        if (jsonArray != null) {
+          for (Object ob : jsonArray) {
             stringList.add((String) ob);
           }
         }
@@ -663,23 +611,23 @@ public class CRUtil {
       } else {
         throw new RuntimeException(popMap.type + " is not a valid type");
       }
-      if(value != null) {
+      if (value != null) {
         method.invoke(pojo, value);
       }
     }
   }
 
   public static void copyFields(Object destinationPojo, Object sourcePojo) {
-    if(destinationPojo == null || sourcePojo == null) {
+    if (destinationPojo == null || sourcePojo == null) {
       return;
     }
     Method[] destinationMethods = destinationPojo.getClass().getMethods();
     String patternString = "set(.+)";
     Pattern pattern = Pattern.compile(patternString);
-    for(Method method : destinationMethods) {
+    for (Method method : destinationMethods) {
       String name = method.getName();
       Matcher matcher = pattern.matcher(name);
-      if(!matcher.find()) {
+      if (!matcher.find()) {
         continue;
       }
       String methodPart = matcher.group(1);
@@ -792,11 +740,11 @@ public class CRUtil {
     }
     CompositeFuture compositeFuture = CompositeFuture.all(expandedCourseFutureList);
     compositeFuture.onComplete(expandCoursesRes -> {
-      if(expandCoursesRes.failed()) {
+      if (expandCoursesRes.failed()) {
         promise.fail(expandCoursesRes.cause());
       } else {
         List<Course> newListOfCourses = new ArrayList<>();
-        for( Future fut : expandedCourseFutureList ) {
+        for ( Future fut : expandedCourseFutureList ) {
           Future<Course> f = (Future<Course>)fut;
           newListOfCourses.add(f.result());
         }
@@ -813,38 +761,38 @@ public class CRUtil {
     Course newCourse;
     try {
       newCourse = copyCourse(course);
-      if(course.getCourseListingId() == null) {
+      if (course.getCourseListingId() == null) {
         courseListingFuture = Future.succeededFuture();
       } else {
         courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
             okapiHeaders, context, Boolean.TRUE);
       }
       courseListingFuture.onComplete(courselistingReply -> {
-        if(courselistingReply.failed()) {
+        if (courselistingReply.failed()) {
           promise.fail(courselistingReply.cause());
         } else {
           try {
           CourseListingObject expandedCourseListing = new CourseListingObject();
           CourseListing courseListing = courselistingReply.result();
-          if(courseListing != null) {
+          if (courseListing != null) {
             copyFields(expandedCourseListing, courseListing);
           }
           newCourse.setCourseListingObject(expandedCourseListing);
 
           Future<Department> departmentFuture;
-          if(course.getDepartmentId() == null) {
+          if (course.getDepartmentId() == null) {
             departmentFuture = Future.succeededFuture();
           } else {
             departmentFuture = lookupDepartment(course.getDepartmentId(), okapiHeaders,
                 context);
           }
           departmentFuture.onComplete(departmentReply -> {
-            if(departmentReply.failed()) {
+            if (departmentReply.failed()) {
               promise.fail(departmentReply.cause());
             } else {
               Department department = departmentReply.result();
               try {
-                if(department != null) {
+                if (department != null) {
                   DepartmentObject departmentObject = new DepartmentObject();
                   copyFields(departmentObject, department);
                   newCourse.setDepartmentObject(departmentObject);
@@ -914,7 +862,7 @@ public class CRUtil {
   }
 
   private static LocationObject locationObjectFromJson(JsonObject json) {
-    if(json == null) {
+    if (json == null) {
       return null;
     }
     LocationObject locationObject = new LocationObject();
@@ -951,7 +899,7 @@ public class CRUtil {
   }
 
   private static ServicepointObject servicepointObjectFromJson(JsonObject json) {
-    if(json == null) {
+    if (json == null) {
       return null;
     }
     ServicepointObject servicepointObject = new ServicepointObject();
@@ -972,14 +920,14 @@ public class CRUtil {
     try {
       List<StaffSlip> staffSlipList = new ArrayList<>();
       JsonArray staffSlips = json.getJsonArray("staffSlips");
-      for(int i = 0; i < staffSlips.size();i++) {
+      for (int i = 0; i < staffSlips.size();i++) {
         JsonObject slip = staffSlips.getJsonObject(i);
         StaffSlip staffSlip = new StaffSlip();
         staffSlip.setId(slip.getString("id"));
         staffSlip.setPrintByDefault(slip.getBoolean("printByDefault"));
         staffSlipList.add(staffSlip);
       }
-      if(!staffSlipList.isEmpty()) {
+      if (!staffSlipList.isEmpty()) {
         servicepointObject.setStaffSlips(staffSlipList);
       }
     } catch (Exception e) {
@@ -988,7 +936,7 @@ public class CRUtil {
 
     try {
       JsonObject hsepJson = json.getJsonObject("holdShelfExpiryPeriod");
-      if(hsepJson != null) {
+      if (hsepJson != null) {
         HoldShelfExpiryPeriod hsep = new HoldShelfExpiryPeriod();
         hsep.setDuration(hsepJson.getInteger("duration"));
         String intervalIdString = hsepJson.getString("intervalId");
@@ -1014,7 +962,7 @@ public class CRUtil {
   public static List<InstructorObject> instructorObjectListFromInstructorList(
       List<Instructor> instructorList) {
     List<InstructorObject> instructorObjectList = new ArrayList<>();
-    for(Instructor instructor : instructorList) {
+    for (Instructor instructor : instructorList) {
       InstructorObject instructorObject = new InstructorObject();
       copyFields(instructorObject, instructor);
       instructorObjectList.add(instructorObject);
@@ -1023,14 +971,14 @@ public class CRUtil {
   }
 
   public static String makeCallNumber(String prefix, String number, String suffix) {
-    if(number == null || number.isEmpty()) {
+    if (number == null || number.isEmpty()) {
       return null;
     }
-    if(prefix == null) {
+    if (prefix == null) {
       prefix = "";
     }
 
-    if(suffix == null) {
+    if (suffix == null) {
       suffix = "";
     }
     return prefix + number + suffix;
@@ -1040,7 +988,7 @@ public class CRUtil {
   public static String UTCFromLocalDate(String localDate) {
     Pattern pattern = Pattern.compile("^\\d\\d\\d\\d-\\d\\d-\\d\\d$");
     Matcher matcher = pattern.matcher(localDate);
-    if(matcher.matches()) {
+    if (matcher.matches()) {
       return localDate + "T00:00:00Z";
     } else {
       return localDate;
