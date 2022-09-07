@@ -364,58 +364,40 @@ public class CRUtil {
 
   public static Future<Reserve> lookupExpandedReserve(String reserveId,
       Map<String, String> okapiHeaders, Context context, Boolean expand) {
-    Promise<Reserve> promise = Promise.promise();
-    getReserveById(reserveId, okapiHeaders, context).onComplete(reserveRes -> {
-      if (reserveRes.failed()) {
-        promise.fail(reserveRes.cause());
-      } else if (expand == false ||  reserveRes.result() == null ||
-          reserveRes.result().getCopiedItem() == null) {
-        promise.complete(reserveRes.result());
-      } else {
-        try {
-          Reserve reserve = reserveRes.result();
-          Future<JsonObject> tempLocationFuture = lookupLocation(
-              reserve.getCopiedItem().getTemporaryLocationId(), okapiHeaders, context);
-          Future<JsonObject> permLocationFuture = lookupLocation(
-              reserve.getCopiedItem().getPermanentLocationId(), okapiHeaders, context);
-          Future<ProcessingStatus> processingStatusFuture;
-          if (reserve.getProcessingStatusId() != null) {
-            processingStatusFuture = lookupProcessingStatus(
-              reserve.getProcessingStatusId(), okapiHeaders, context);
-          } else {
-            processingStatusFuture = Future.failedFuture("No processing status id");
-          }
-          Future<CopyrightStatus> copyrightStatusFuture;
-          if (reserve.getCopyrightTracking() != null
-              && reserve.getCopyrightTracking().getCopyrightStatusId() != null) {
-            copyrightStatusFuture = lookupCopyrightStatus(
-            reserve.getCopyrightTracking().getCopyrightStatusId(), okapiHeaders,
-                context);
-          } else {
-            copyrightStatusFuture = Future.failedFuture("No copyright tracking object");
-          }
-          Future<JsonObject> loanTypeFuture;
-          if (reserve.getTemporaryLoanTypeId() != null) {
-            loanTypeFuture = lookupLoanType(reserve.getTemporaryLoanTypeId(),
-                okapiHeaders, context);
-          } else {
-            loanTypeFuture = Future.failedFuture("No temporary loan type id");
-          }
-          populateReserveForRetrieval(reserve, tempLocationFuture, permLocationFuture,
-              processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
-              .onComplete(populateRes -> {
-            if (populateRes.failed()) {
-              promise.fail(populateRes.cause());
-            } else {
-              promise.complete(reserve);
-            }
-          });
-        } catch(Exception e) {
-          promise.fail(e);
-        }
+    return getReserveById(reserveId, okapiHeaders, context).compose(reserve -> {
+      if (expand == false || reserve == null || reserve.getCopiedItem() == null) {
+        return Future.succeededFuture(reserve);
       }
+      Future<JsonObject> tempLocationFuture = lookupLocation(
+          reserve.getCopiedItem().getTemporaryLocationId(), okapiHeaders, context);
+      Future<JsonObject> permLocationFuture = lookupLocation(
+          reserve.getCopiedItem().getPermanentLocationId(), okapiHeaders, context);
+      Future<ProcessingStatus> processingStatusFuture;
+      if (reserve.getProcessingStatusId() != null) {
+        processingStatusFuture = lookupProcessingStatus(
+            reserve.getProcessingStatusId(), okapiHeaders, context);
+      } else {
+        processingStatusFuture = Future.failedFuture("No processing status id");
+      }
+      Future<CopyrightStatus> copyrightStatusFuture;
+      if (reserve.getCopyrightTracking() != null
+          && reserve.getCopyrightTracking().getCopyrightStatusId() != null) {
+        copyrightStatusFuture = lookupCopyrightStatus(
+            reserve.getCopyrightTracking().getCopyrightStatusId(), okapiHeaders,
+            context);
+      } else {
+        copyrightStatusFuture = Future.failedFuture("No copyright tracking object");
+      }
+      Future<JsonObject> loanTypeFuture;
+      if (reserve.getTemporaryLoanTypeId() != null) {
+        loanTypeFuture = lookupLoanType(reserve.getTemporaryLoanTypeId(),
+            okapiHeaders, context);
+      } else {
+        loanTypeFuture = Future.failedFuture("No temporary loan type id");
+      }
+      return populateReserveForRetrieval(reserve, tempLocationFuture, permLocationFuture,
+          processingStatusFuture, copyrightStatusFuture, loanTypeFuture).map(x -> reserve);
     });
-    return promise.future();
   }
 
   public static Future<JsonObject> lookupItemByBarcode(String barcode,
