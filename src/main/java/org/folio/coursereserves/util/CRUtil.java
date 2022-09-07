@@ -159,7 +159,7 @@ public class CRUtil {
     }
     return GenericCompositeFuture
         .all(expandedReserveFutureList)
-        .map(expandReservesRes -> expandReservesRes.list());
+        .map(CompositeFuture::list);
   }
 
   public static String getStringValueFromObjectArray(String fieldName, JsonArray array) {
@@ -365,7 +365,7 @@ public class CRUtil {
   public static Future<Reserve> lookupExpandedReserve(String reserveId,
       Map<String, String> okapiHeaders, Context context, Boolean expand) {
     return getReserveById(reserveId, okapiHeaders, context).compose(reserve -> {
-      if (expand == false || reserve == null || reserve.getCopiedItem() == null) {
+      if (Boolean.FALSE.equals(expand) || reserve == null || reserve.getCopiedItem() == null) {
         return Future.succeededFuture(reserve);
       }
       Future<JsonObject> tempLocationFuture = lookupLocation(
@@ -702,7 +702,7 @@ public class CRUtil {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
     CompositeFuture compositeFuture = GenericCompositeFuture.all(expandedCourseFutureList);
-    return compositeFuture.map(expandCoursesRes -> expandCoursesRes.list());
+    return compositeFuture.map(CompositeFuture::list);
   }
 
   public static Future<Course> getExpandedCourse(Course course,
