@@ -426,55 +426,51 @@ public class CRUtil {
       Future<JsonObject> tempLocationFuture, Future<JsonObject> permLocationFuture,
       Future<ProcessingStatus> processingStatusFuture,
       Future<CopyrightStatus> copyrightStatusFuture, Future<JsonObject> loanTypeFuture) {
-    Promise promise = Promise.promise();
     List<Future> futureList = new ArrayList<>();
     futureList.add(tempLocationFuture);
     futureList.add(permLocationFuture);
     futureList.add(processingStatusFuture);
     futureList.add(copyrightStatusFuture);
     futureList.add(loanTypeFuture);
-    CompositeFuture compositeFuture = CompositeFuture.join(futureList);
-    compositeFuture.onComplete(compRes -> {
-      try {
-        if (reserve.getCopiedItem() != null) {
-          if (tempLocationFuture.succeeded()) {
-            reserve.getCopiedItem().setTemporaryLocationObject(
-                temporaryLocationObjectFromJson(tempLocationFuture.result()));
+    return CompositeFuture
+        .join(futureList)
+        .recover(x -> Future.succeededFuture())
+        .compose(x -> {
+          if (reserve.getCopiedItem() != null) {
+            if (tempLocationFuture.succeeded()) {
+              reserve.getCopiedItem().setTemporaryLocationObject(
+                  temporaryLocationObjectFromJson(tempLocationFuture.result()));
+            } else {
+              logger.info("TemporaryLocationObject lookup failed {}",
+                  tempLocationFuture.cause().getMessage());
+            }
+            if (permLocationFuture.succeeded()) {
+              reserve.getCopiedItem().setPermanentLocationObject(
+                  temporaryLocationObjectFromJson(permLocationFuture.result()));
+            } else {
+              logger.info("PermanentLocationObject lookup failed {}",
+                  permLocationFuture.cause().getMessage());
+            }
           } else {
-            logger.info("TemporaryLocationObject lookup failed {}",
-                tempLocationFuture.cause().getMessage());
+            logger.info("No copied item field in reserve to populate");
           }
-          if (permLocationFuture.succeeded()) {
-            reserve.getCopiedItem().setPermanentLocationObject(
-                temporaryLocationObjectFromJson(permLocationFuture.result()));
-          } else {
-            logger.info("PermanentLocationObject lookup failed {}",
-                permLocationFuture.cause().getMessage());
+          if (processingStatusFuture.succeeded()) {
+            ProcessingStatusObject pso = new ProcessingStatusObject();
+            copyFields(pso, processingStatusFuture.result());
+            reserve.setProcessingStatusObject(pso);
           }
-        } else {
-          logger.info("No copied item field in reserve to populate");
-        }
-        if (processingStatusFuture.succeeded()) {
-          ProcessingStatusObject pso = new ProcessingStatusObject();
-          copyFields(pso, processingStatusFuture.result());
-          reserve.setProcessingStatusObject(pso);
-        }
-        if (copyrightStatusFuture.succeeded()) {
-          CopyrightStatusObject cso = new CopyrightStatusObject();
-          copyFields(cso, copyrightStatusFuture.result());
-          reserve.getCopyrightTracking().setCopyrightStatusObject(cso);
-        }
-        if (loanTypeFuture.succeeded()) {
-          TemporaryLoanTypeObject tlto = temporaryLoanTypeObjectFromJson(
-              loanTypeFuture.result());
-          reserve.setTemporaryLoanTypeObject(tlto);
-        }
-        promise.complete();
-      } catch(Exception e) {
-        promise.fail(e);
-      }
-    });
-    return promise.future();
+          if (copyrightStatusFuture.succeeded()) {
+            CopyrightStatusObject cso = new CopyrightStatusObject();
+            copyFields(cso, copyrightStatusFuture.result());
+            reserve.getCopyrightTracking().setCopyrightStatusObject(cso);
+          }
+          if (loanTypeFuture.succeeded()) {
+            TemporaryLoanTypeObject tlto = temporaryLoanTypeObjectFromJson(
+                loanTypeFuture.result());
+            reserve.setTemporaryLoanTypeObject(tlto);
+          }
+          return Future.succeededFuture();
+        });
   }
 
   public static Future<CourseListing> lookupExpandedCourseListing(String courseListingId,
