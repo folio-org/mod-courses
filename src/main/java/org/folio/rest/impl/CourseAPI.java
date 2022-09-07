@@ -1069,28 +1069,13 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   }
 
   public Future<Void> resetItemTemporaryLocation(String itemId, Map<String, String> okapiHeaders,
-      Context vertxContext) {
-    Promise<Void> promise = Promise.promise();
-    CRUtil.lookupItemHoldingsInstanceByItemId(itemId, okapiHeaders, vertxContext).onComplete(itemHoldingInstanceRes -> {
-      if (itemHoldingInstanceRes.failed()) {
-        promise.fail(itemHoldingInstanceRes.cause());
-      } else {
-        try {
-          JsonObject itemJson = itemHoldingInstanceRes.result().getJsonObject("item");
-          itemJson.putNull("temporaryLocationId");
-          CRUtil.putItemUpdate(itemJson, okapiHeaders, vertxContext).onComplete(putRes -> {
-            if (putRes.failed()) {
-              promise.fail(putRes.cause());
-            } else {
-              promise.complete();
-            }
-          });
-        } catch (Exception e) {
-          promise.fail(e);
-        }
-      }
-    });
-    return promise.future();
+          Context vertxContext) {
+    return CRUtil.lookupItemHoldingsInstanceByItemId(itemId, okapiHeaders, vertxContext)
+            .compose(itemHoldingInstanceRes -> {
+              JsonObject itemJson = itemHoldingInstanceRes.getJsonObject("item");
+              itemJson.putNull("temporaryLocationId");
+              return CRUtil.putItemUpdate(itemJson, okapiHeaders, vertxContext);
+            });
   }
 
   public static void scrubDerivedFields(final Object pojo) {
