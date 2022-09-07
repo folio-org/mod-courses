@@ -550,9 +550,9 @@ public class CRUtil {
   public static void populatePojoFromJson(Object pojo, JsonObject json,
       List<PopulateMapping> mapList) throws NoSuchMethodException,
       IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-    for ( PopulateMapping popMap : mapList ) {
-      Object value = null;
-      Method method = null;
+    for (PopulateMapping popMap : mapList ) {
+      Object value;
+      Method method;
       if (popMap.type.equals(ImportType.STRING)) {
         value = json.getString(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, String.class);
@@ -697,86 +697,47 @@ public class CRUtil {
   }
   public static Future<List<Course>> expandListOfCourses(List<Course> listOfCourses,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Course>> promise = Promise.promise();
-    List<Future> expandedCourseFutureList = new ArrayList<>();
+    List<Future<Course>> expandedCourseFutureList = new ArrayList<>();
     for (Course course : listOfCourses) {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
-    CompositeFuture compositeFuture = CompositeFuture.all(expandedCourseFutureList);
-    compositeFuture.onComplete(expandCoursesRes -> {
-      if (expandCoursesRes.failed()) {
-        promise.fail(expandCoursesRes.cause());
-      } else {
-        List<Course> newListOfCourses = new ArrayList<>();
-        for ( Future fut : expandedCourseFutureList ) {
-          Future<Course> f = (Future<Course>)fut;
-          newListOfCourses.add(f.result());
-        }
-        promise.complete(newListOfCourses);
-      }
-    });
-    return promise.future();
+    CompositeFuture compositeFuture = GenericCompositeFuture.all(expandedCourseFutureList);
+    return compositeFuture.map(expandCoursesRes -> expandCoursesRes.list());
   }
 
   public static Future<Course> getExpandedCourse(Course course,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Course> promise = Promise.promise();
     Future<CourseListing> courseListingFuture;
-    Course newCourse;
-    try {
-      newCourse = copyCourse(course);
-      if (course.getCourseListingId() == null) {
-        courseListingFuture = Future.succeededFuture();
-      } else {
-        courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
-            okapiHeaders, context, Boolean.TRUE);
+    if (course.getCourseListingId() == null) {
+      courseListingFuture = Future.succeededFuture();
+    } else {
+      courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
+          okapiHeaders, context, Boolean.TRUE);
+    }
+    return courseListingFuture.compose(courseListing -> {
+      CourseListingObject expandedCourseListing = new CourseListingObject();
+      if (courseListing != null) {
+        copyFields(expandedCourseListing, courseListing);
       }
-      courseListingFuture.onComplete(courselistingReply -> {
-        if (courselistingReply.failed()) {
-          promise.fail(courselistingReply.cause());
-        } else {
-          try {
-          CourseListingObject expandedCourseListing = new CourseListingObject();
-          CourseListing courseListing = courselistingReply.result();
-          if (courseListing != null) {
-            copyFields(expandedCourseListing, courseListing);
-          }
-          newCourse.setCourseListingObject(expandedCourseListing);
+      Course newCourse = copyCourse(course);
+      newCourse.setCourseListingObject(expandedCourseListing);
 
-          Future<Department> departmentFuture;
-          if (course.getDepartmentId() == null) {
-            departmentFuture = Future.succeededFuture();
-          } else {
-            departmentFuture = lookupDepartment(course.getDepartmentId(), okapiHeaders,
-                context);
-          }
-          departmentFuture.onComplete(departmentReply -> {
-            if (departmentReply.failed()) {
-              promise.fail(departmentReply.cause());
-            } else {
-              Department department = departmentReply.result();
-              try {
-                if (department != null) {
-                  DepartmentObject departmentObject = new DepartmentObject();
-                  copyFields(departmentObject, department);
-                  newCourse.setDepartmentObject(departmentObject);
-                }
-              promise.complete(newCourse);
-              } catch(Exception e) {
-                promise.fail(e);
-              }
-            }
-          });
-          } catch(Exception e) {
-            promise.fail(e);
-          }
+      Future<Department> departmentFuture;
+      if (course.getDepartmentId() == null) {
+        departmentFuture = Future.succeededFuture();
+      } else {
+        departmentFuture = lookupDepartment(course.getDepartmentId(), okapiHeaders,
+            context);
+      }
+      return departmentFuture.map(department -> {
+        if (department != null) {
+          DepartmentObject departmentObject = new DepartmentObject();
+          copyFields(departmentObject, department);
+          newCourse.setDepartmentObject(departmentObject);
         }
+        return newCourse;
       });
-    }
-      catch(Exception e) {
-        promise.fail(e);
-    }
-    return promise.future();
+    });
   }
 
   public static Future<Void> putItemUpdate(JsonObject itemJson,
