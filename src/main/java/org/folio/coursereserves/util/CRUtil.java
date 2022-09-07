@@ -435,7 +435,7 @@ public class CRUtil {
     return CompositeFuture
         .join(futureList)
         .recover(x -> Future.succeededFuture())
-        .compose(x -> {
+        .map(x -> {
           if (reserve.getCopiedItem() != null) {
             if (tempLocationFuture.succeeded()) {
               reserve.getCopiedItem().setTemporaryLocationObject(
@@ -469,82 +469,68 @@ public class CRUtil {
                 loanTypeFuture.result());
             reserve.setTemporaryLoanTypeObject(tlto);
           }
-          return Future.succeededFuture();
+          return null;
         });
   }
 
   public static Future<CourseListing> lookupExpandedCourseListing(String courseListingId,
       Map<String, String> okapiHeaders, Context context, Boolean expandTerm) {
-    Promise<CourseListing> promise = Promise.promise();
-    getCourseListingById(courseListingId, okapiHeaders, context).onComplete(clRes -> {
-      if (clRes.failed()) {
-        promise.fail(clRes.cause());
-      } else if (clRes.result() == null) {
-        promise.complete(null);
-      } else {
-        try {
-          CourseListing courselisting = clRes.result();
-          String termId = courselisting.getTermId();
-          String courseTypeId = courselisting.getCourseTypeId();
-          String locationId = courselisting.getLocationId();
-          String servicepointId = courselisting.getServicepointId();
-          Future<Term> termFuture;
-          Future<CourseType> coursetypeFuture;
-          Future<JsonObject> locationFuture;
-          Future<JsonObject> servicePointFuture;
-          if (expandTerm && termId != null) {
-            termFuture = lookupTerm(termId, okapiHeaders, context);
-          } else {
-            termFuture = Future.failedFuture("No lookup");
-          }
-          if (expandTerm && courseTypeId != null) {
-            coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
-          } else {
-            coursetypeFuture = Future.failedFuture("No lookup");
-          }
-          if (expandTerm && locationId != null) {
-            locationFuture = lookupLocation(locationId, okapiHeaders, context);
-          } else {
-            locationFuture = Future.failedFuture("No lookup");
-          }
-          if (expandTerm && servicepointId != null) {
-            servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
-          } else {
-            servicePointFuture = Future.failedFuture("No lookup");
-          }
-
-          List<Future> futureList = new ArrayList<>();
-          futureList.add(termFuture);
-          futureList.add(coursetypeFuture);
-          futureList.add(locationFuture);
-          futureList.add(servicePointFuture);
-          CompositeFuture compositeFuture = CompositeFuture.join(futureList);
-          compositeFuture.onComplete(compRes -> {
-            try {
-              if (termFuture.succeeded()) {
-                courselisting.setTermObject(termObjectFromTerm(termFuture.result()));
-              }
-              if (coursetypeFuture.succeeded()) {
-                courselisting.setCourseTypeObject(courseTypeObjectFromCourseType(
-                    coursetypeFuture.result()));
-              }
-              if (locationFuture.succeeded()) {
-                courselisting.setLocationObject(locationObjectFromJson(locationFuture.result()));
-              }
-              if (servicePointFuture.succeeded()) {
-                courselisting.setServicepointObject(servicepointObjectFromJson(servicePointFuture.result()));
-              }
-              promise.complete(courselisting);
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          });
-        } catch(Exception e) {
-          promise.fail(e);
-        }
+    return getCourseListingById(courseListingId, okapiHeaders, context).compose(courselisting -> {
+      if (courselisting == null) {
+        return Future.succeededFuture(null);
       }
+      String termId = courselisting.getTermId();
+      String courseTypeId = courselisting.getCourseTypeId();
+      String locationId = courselisting.getLocationId();
+      String servicepointId = courselisting.getServicepointId();
+      Future<Term> termFuture;
+      Future<CourseType> coursetypeFuture;
+      Future<JsonObject> locationFuture;
+      Future<JsonObject> servicePointFuture;
+      if (expandTerm && termId != null) {
+        termFuture = lookupTerm(termId, okapiHeaders, context);
+      } else {
+        termFuture = Future.failedFuture("No lookup");
+      }
+      if (expandTerm && courseTypeId != null) {
+        coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
+      } else {
+        coursetypeFuture = Future.failedFuture("No lookup");
+      }
+      if (expandTerm && locationId != null) {
+        locationFuture = lookupLocation(locationId, okapiHeaders, context);
+      } else {
+        locationFuture = Future.failedFuture("No lookup");
+      }
+      if (expandTerm && servicepointId != null) {
+        servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
+      } else {
+        servicePointFuture = Future.failedFuture("No lookup");
+      }
+      List<Future> futureList = new ArrayList<>();
+      futureList.add(termFuture);
+      futureList.add(coursetypeFuture);
+      futureList.add(locationFuture);
+      futureList.add(servicePointFuture);
+      return CompositeFuture.join(futureList)
+          .recover(x -> Future.succeededFuture())
+          .map(x -> {
+            if (termFuture.succeeded()) {
+              courselisting.setTermObject(termObjectFromTerm(termFuture.result()));
+            }
+            if (coursetypeFuture.succeeded()) {
+              courselisting.setCourseTypeObject(courseTypeObjectFromCourseType(
+                  coursetypeFuture.result()));
+            }
+            if (locationFuture.succeeded()) {
+              courselisting.setLocationObject(locationObjectFromJson(locationFuture.result()));
+            }
+            if (servicePointFuture.succeeded()) {
+              courselisting.setServicepointObject(servicepointObjectFromJson(servicePointFuture.result()));
+            }
+            return courselisting;
+          });
     });
-    return promise.future();
   }
 
   /* Basic lookup for courselisting, wrapped in a future */
