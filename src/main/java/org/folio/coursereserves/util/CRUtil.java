@@ -426,14 +426,8 @@ public class CRUtil {
       Future<JsonObject> tempLocationFuture, Future<JsonObject> permLocationFuture,
       Future<ProcessingStatus> processingStatusFuture,
       Future<CopyrightStatus> copyrightStatusFuture, Future<JsonObject> loanTypeFuture) {
-    List<Future> futureList = new ArrayList<>();
-    futureList.add(tempLocationFuture);
-    futureList.add(permLocationFuture);
-    futureList.add(processingStatusFuture);
-    futureList.add(copyrightStatusFuture);
-    futureList.add(loanTypeFuture);
     return CompositeFuture
-        .join(futureList)
+        .join(tempLocationFuture, permLocationFuture, processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
         .recover(x -> Future.succeededFuture())
         .map(x -> {
           if (reserve.getCopiedItem() != null) {
@@ -507,12 +501,7 @@ public class CRUtil {
       } else {
         servicePointFuture = Future.failedFuture("No lookup");
       }
-      List<Future> futureList = new ArrayList<>();
-      futureList.add(termFuture);
-      futureList.add(coursetypeFuture);
-      futureList.add(locationFuture);
-      futureList.add(servicePointFuture);
-      return CompositeFuture.join(futureList)
+      return CompositeFuture.join(termFuture, coursetypeFuture, locationFuture, servicePointFuture)
           .recover(x -> Future.succeededFuture())
           .map(x -> {
             if (termFuture.succeeded()) {
