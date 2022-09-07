@@ -4,7 +4,6 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -742,25 +741,12 @@ public class CRUtil {
 
   public static Future<Void> putItemUpdate(JsonObject itemJson,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Void> promise = Promise.promise();
-    try {
-       String id = itemJson.getString("id");
-       String putPath = ITEMS_ENDPOINT + "/" + id;
-       logger.info("Making PUT request to Okapi inventory storage with itemJson {}",
-           itemJson::encode);
-       makeOkapiRequest(context.owner(), okapiHeaders, putPath, HttpMethod.PUT,
-           textAcceptHeaders, itemJson.encode(), 204).onComplete(res -> {
-         if (res.failed()) {
-           logger.error("Put failed: {}", res.cause().getMessage());
-           promise.fail(res.cause());
-         } else {
-           promise.complete();
-         }
-       });
-    } catch(Exception e) {
-      promise.fail(e);
-    }
-    return promise.future();
+    String id = itemJson.getString("id");
+    String putPath = ITEMS_ENDPOINT + "/" + id;
+    logger.info("Making PUT request to Okapi inventory storage with itemJson {}",
+        itemJson::encode);
+    return makeOkapiRequest(context.owner(), okapiHeaders, putPath, HttpMethod.PUT,
+        textAcceptHeaders, itemJson.encode(), 204).mapEmpty();
   }
 
   private static Course copyCourse(Course originalCourse) {
