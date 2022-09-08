@@ -114,8 +114,7 @@ public class CRUtil {
     return acceptMap;
   }
 
-  public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
-      Map<String, String> okapiHeaders, Context context) {
+  private static Future<String> getItemId(Reserve reserve, Map<String, String> okapiHeaders, Context context) {
     String barcode;
     if (reserve.getCopiedItem() != null) {
       barcode = reserve.getCopiedItem().getBarcode();
@@ -123,11 +122,10 @@ public class CRUtil {
       barcode = null;
     }
     String itemId = reserve.getItemId();
-    Future<String> itemIdFuture;
     if (itemId != null && barcode == null) {
-      itemIdFuture = Future.succeededFuture(itemId);
+      return Future.succeededFuture(itemId);
     } else if (barcode != null) {
-      itemIdFuture = lookupItemByBarcode(barcode, okapiHeaders, context).map(barcodeItemLookupRes -> {
+      return lookupItemByBarcode(barcode, okapiHeaders, context).map(barcodeItemLookupRes -> {
         if (barcodeItemLookupRes == null) {
           throw new RuntimeException("No item found for barcode " + barcode);
         }
@@ -136,19 +134,24 @@ public class CRUtil {
     } else {
       return Future.failedFuture("Must provide item id or item barcode to populate copied items");
     }
-    return itemIdFuture.compose(itemIdRes -> {
-      reserve.setItemId(itemIdRes);
-      String retrievedItemId = itemIdRes;
-      logger.info("Looking up information for item {} from inventory module",
-          retrievedItemId);
-      return lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
-          .map(inventoryRes -> {
-            logger.info("Attempting to populate copied items with inventory lookup for item id {}",
-                retrievedItemId);
-            populateReserveCopiedItemFromJson(reserve, inventoryRes);
-            return inventoryRes;
-          });
-    });
+  }
+
+  public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
+      Map<String, String> okapiHeaders, Context context) {
+    return getItemId(reserve, okapiHeaders, context)
+        .compose(itemIdRes -> {
+          reserve.setItemId(itemIdRes);
+          String retrievedItemId = itemIdRes;
+          logger.info("Looking up information for item {} from inventory module",
+              retrievedItemId);
+          return lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
+              .map(inventoryRes -> {
+                logger.info("Attempting to populate copied items with inventory lookup for item id {}",
+                    retrievedItemId);
+                populateReserveCopiedItemFromJson(reserve, inventoryRes);
+                return inventoryRes;
+              });
+        });
   }
 
   public static Future<List<Reserve>> expandListOfReserves(List<Reserve> listOfReserves,
@@ -264,41 +267,46 @@ public class CRUtil {
   public static Future<JsonObject> lookupItemHoldingsInstanceByItemId(String itemId,
       Map<String, String> okapiHeaders, Context context) {
     logger.info("Making request for item at {}/{}", ITEMS_ENDPOINT, itemId);
+    JsonObject result = new JsonObject();
     return makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
-        HttpMethod.GET, null, null, 200).compose(itemJson -> {
-      JsonObject result = new JsonObject();
-      String holdingsId = itemJson.getString("holdingsRecordId");
-      result.put("item", itemJson);
-      logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
-      return makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
-          HttpMethod.GET, null, null, 200).compose(holdingsJson -> {
-        String instanceId = holdingsJson.getString("instanceId");
-        result.put("holdings", holdingsJson);
-        logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
-        return makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT
-            + "/" + instanceId, HttpMethod.GET, null, null, 200).map(instanceJson -> {
-              result.put("instance", instanceJson);
-              return result;
+        HttpMethod.GET, null, null, 200)
+        .compose(itemJson -> {
+          String holdingsId = itemJson.getString("holdingsRecordId");
+          result.put("item", itemJson);
+          logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
+          return makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
+              HttpMethod.GET, null, null, 200);
+        })
+        .compose(holdingsJson -> {
+          String instanceId = holdingsJson.getString("instanceId");
+          result.put("holdings", holdingsJson);
+          logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
+          return makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT + "/" + instanceId,
+              HttpMethod.GET, null, null, 200)
+              .map(instanceJson -> {
+                result.put("instance", instanceJson);
+                return result;
+              });
         });
-      });
-    });
   }
 
   public static Future<JsonObject> lookupUserAndGroupByUserId(String userId,
       Map<String, String> okapiHeaders, Context context) {
     String userPath = "/users/" + userId;
+    JsonObject result = new JsonObject();
     return makeOkapiRequest(context.owner(), okapiHeaders, userPath, HttpMethod.GET,
-        null, null, 200).compose(userRes -> {
-      JsonObject result = new JsonObject();
-      result.put("user", userRes);
-      String groupId = userRes.getString("patronGroup");
-      String groupPath = "/groups/" + groupId;
-      return makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
-          null, null, 200).map(groupRes -> {
-        result.put("group", groupRes);
-        return result;
-      });
-    });
+        null, null, 200)
+        .compose(userRes -> {
+          result.put("user", userRes);
+          String groupId = userRes.getString("patronGroup");
+          String groupPath = "/groups/" + groupId;
+          return makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
+              null, null, 200);
+        })
+        .map(groupRes -> {
+          result.put("group", groupRes);
+          return result;
+        });
   }
 
   public static Future<JsonObject> makeOkapiRequest(Vertx vertx,
@@ -354,11 +362,10 @@ public class CRUtil {
         logger.error(message);
         return Future.failedFuture(message);
       }
-      if (response != null && !response.isEmpty()) {
-        return Future.succeededFuture(new JsonObject(response));
-      } else {
+      if (response == null || response.isEmpty()) {
         return Future.succeededFuture(null);
       }
+      return Future.succeededFuture(new JsonObject(response));
     });
   }
 
@@ -409,17 +416,17 @@ public class CRUtil {
     logger.debug("Looking up item by barcode with url {}", itemRequestUrl);
     return makeOkapiRequest(context.owner(), okapiHeaders, itemRequestUrl, HttpMethod.GET,
         null, null, 200)
-    .map(jsonObject -> {
-      int totalRecords = jsonObject.getInteger("totalRecords");
-      if (totalRecords > 1) {
-        throw new IllegalStateException(
-            "Expected 1 result for barcode " + barcode + ", got " + totalRecords);
-      }
-      if (totalRecords < 1) {
-        return null;
-      }
-      return jsonObject.getJsonArray("items").getJsonObject(0);
-    });
+        .map(jsonObject -> {
+          int totalRecords = jsonObject.getInteger("totalRecords");
+          if (totalRecords > 1) {
+            throw new IllegalStateException(
+                "Expected 1 result for barcode " + barcode + ", got " + totalRecords);
+          }
+          if (totalRecords < 1) {
+            return null;
+          }
+          return jsonObject.getJsonArray("items").getJsonObject(0);
+        });
   }
 
   public static Future<Void> populateReserveForRetrieval(Reserve reserve,
