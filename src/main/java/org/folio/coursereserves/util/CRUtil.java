@@ -158,7 +158,7 @@ public class CRUtil {
       Map<String, String> okapiHeaders, Context context) {
     List<Future<Reserve>> expandedReserveFutureList = new ArrayList<>();
     for (Reserve reserve : listOfReserves) {
-      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(), okapiHeaders, context, true));
+      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(), okapiHeaders, context));
     }
     return GenericCompositeFuture
         .all(expandedReserveFutureList)
@@ -370,9 +370,9 @@ public class CRUtil {
   }
 
   public static Future<Reserve> lookupExpandedReserve(String reserveId,
-      Map<String, String> okapiHeaders, Context context, Boolean expand) {
+      Map<String, String> okapiHeaders, Context context) {
     return getReserveById(reserveId, okapiHeaders, context).compose(reserve -> {
-      if (Boolean.FALSE.equals(expand) || reserve == null || reserve.getCopiedItem() == null) {
+      if (reserve == null || reserve.getCopiedItem() == null) {
         return Future.succeededFuture(reserve);
       }
       Future<JsonObject> tempLocationFuture = lookupLocation(

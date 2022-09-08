@@ -464,7 +464,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       Context vertxContext) {
 
     try {
-      CRUtil.lookupExpandedReserve(reserveId, okapiHeaders, vertxContext, true).onComplete(res -> {
+      CRUtil.lookupExpandedReserve(reserveId, okapiHeaders, vertxContext).onComplete(res -> {
         if (res.failed()) {
           String message = logAndSaveError(res.cause());
           asyncResultHandler
