@@ -178,7 +178,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void getCoursereservesCourselistingsByListingId(String listingId, String lang,
       Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    CRUtil.lookupExpandedCourseListing(listingId, okapiHeaders, vertxContext, true).onComplete(res -> {
+    CRUtil.lookupExpandedCourseListing(listingId, okapiHeaders, vertxContext).onComplete(res -> {
       if (res.failed()) {
         String message = logAndSaveError(res.cause());
         asyncResultHandler.handle(Future.succeededFuture(

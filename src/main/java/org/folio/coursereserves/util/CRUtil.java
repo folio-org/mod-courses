@@ -475,7 +475,7 @@ public class CRUtil {
   }
 
   public static Future<CourseListing> lookupExpandedCourseListing(String courseListingId,
-      Map<String, String> okapiHeaders, Context context, Boolean expandTerm) {
+      Map<String, String> okapiHeaders, Context context) {
     return getCourseListingById(courseListingId, okapiHeaders, context).compose(courselisting -> {
       if (courselisting == null) {
         return Future.succeededFuture(null);
@@ -488,22 +488,22 @@ public class CRUtil {
       Future<CourseType> coursetypeFuture;
       Future<JsonObject> locationFuture;
       Future<JsonObject> servicePointFuture;
-      if (expandTerm && termId != null) {
+      if (termId != null) {
         termFuture = lookupTerm(termId, okapiHeaders, context);
       } else {
         termFuture = Future.failedFuture("No lookup");
       }
-      if (expandTerm && courseTypeId != null) {
+      if (courseTypeId != null) {
         coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
       } else {
         coursetypeFuture = Future.failedFuture("No lookup");
       }
-      if (expandTerm && locationId != null) {
+      if (locationId != null) {
         locationFuture = lookupLocation(locationId, okapiHeaders, context);
       } else {
         locationFuture = Future.failedFuture("No lookup");
       }
-      if (expandTerm && servicepointId != null) {
+      if (servicepointId != null) {
         servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
       } else {
         servicePointFuture = Future.failedFuture("No lookup");
@@ -709,7 +709,7 @@ public class CRUtil {
       courseListingFuture = Future.succeededFuture();
     } else {
       courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
-          okapiHeaders, context, Boolean.TRUE);
+          okapiHeaders, context);
     }
     return courseListingFuture.compose(courseListing -> {
       CourseListingObject expandedCourseListing = new CourseListingObject();
