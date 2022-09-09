@@ -46,6 +46,8 @@ import org.folio.rest.persist.Criteria.Criterion;
 import org.folio.rest.persist.Criteria.Limit;
 import org.folio.rest.persist.Criteria.Offset;
 import org.folio.rest.persist.PgUtil;
+
+import static org.folio.coursereserves.util.Util.getQueryWithLimit;
 import static org.folio.rest.persist.PgUtil.postgresClient;
 import org.folio.rest.persist.PostgresClient;
 import org.folio.rest.persist.cql.CQLWrapper;
@@ -216,12 +218,8 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
     String courseQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    if (query == null || query.isEmpty()) {
-      query = courseQueryClause;
-    } else {
-      query = String.format("%s AND (%s)", courseQueryClause, query);
-    }
-    PgUtil.get(COURSES_TABLE, Course.class, Courses.class, query, offset, limit, okapiHeaders, vertxContext,
+    PgUtil.get(COURSES_TABLE, Course.class, Courses.class, getQueryWithLimit(query, courseQueryClause),
+        offset, limit, okapiHeaders, vertxContext,
         GetCoursereservesCourselistingsCoursesByListingIdResponse.class, asyncResultHandler);
   }
 
@@ -277,13 +275,9 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       int limit, String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
     String instructorQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    if (query == null || query.isEmpty()) {
-      query = instructorQueryClause;
-    } else {
-      query = String.format("%s AND (%s)", instructorQueryClause, query);
-    }
-    PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, query, offset, limit, okapiHeaders,
-        vertxContext, GetCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
+    PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, getQueryWithLimit(query, instructorQueryClause),
+        offset, limit, okapiHeaders, vertxContext,
+        GetCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -423,12 +417,8 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
       int offset, int limit, String lang, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
     String courseListingQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    if (query == null || query.isEmpty()) {
-      query = courseListingQueryClause;
-    } else {
-      query = String.format("%s AND (%s)", courseListingQueryClause, query);
-    }
-    handleGetReserves(expand, query, offset, limit, okapiHeaders, asyncResultHandler, vertxContext);
+    handleGetReserves(expand, getQueryWithLimit(query, courseListingQueryClause),
+        offset, limit, okapiHeaders, asyncResultHandler, vertxContext);
   }
 
   @Override
