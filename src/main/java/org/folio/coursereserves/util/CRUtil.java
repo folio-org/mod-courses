@@ -139,9 +139,8 @@ public class CRUtil {
   public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
       Map<String, String> okapiHeaders, Context context) {
     return getItemId(reserve, okapiHeaders, context)
-        .compose(itemIdRes -> {
-          reserve.setItemId(itemIdRes);
-          String retrievedItemId = itemIdRes;
+        .compose(retrievedItemId -> {
+          reserve.setItemId(retrievedItemId);
           logger.info("Looking up information for item {} from inventory module",
               retrievedItemId);
           return lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
@@ -627,23 +626,20 @@ public class CRUtil {
 
   public static Future<Void> updateCourseListingInstructorCache(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
-    return lookupInstructorsForCourseListing(courseListingId,
-        okapiHeaders, context).compose(instructorRes ->
-        getCourseListingById(courseListingId, okapiHeaders, context).compose(getRes -> {
-          CourseListing courseListing = getRes;
-          List<Instructor> instructorList = instructorRes;
-          logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
-          courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
-              instructorList));
-          PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-          return postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId)
-              .mapEmpty();
-        })
-    );
+    return lookupInstructorsForCourseListing(courseListingId, okapiHeaders, context)
+        .compose(instructorList -> getCourseListingById(courseListingId, okapiHeaders, context)
+            .compose(courseListing -> {
+              logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
+              courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
+                  instructorList));
+              PostgresClient postgresClient = getPgClient(okapiHeaders, context);
+              return postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId)
+                  .mapEmpty();
+            })
+        );
   }
 
-  public static Future<Term> lookupTerm(String termId,
-      Map<String, String> okapiHeaders, Context context) {;
+  public static Future<Term> lookupTerm(String termId, Map<String, String> okapiHeaders, Context context) {
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
     return postgresClient.getById(TERMS_TABLE, termId, Term.class);
   }
