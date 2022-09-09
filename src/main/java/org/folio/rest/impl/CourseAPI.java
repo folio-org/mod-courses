@@ -219,7 +219,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
     if (query == null || query.isEmpty()) {
       query = courseQueryClause;
     } else {
-      query = String.format("(%s) AND %s", courseQueryClause, query);
+      query = String.format("%s AND (%s)", courseQueryClause, query);
     }
     PgUtil.get(COURSES_TABLE, Course.class, Courses.class, query, offset, limit, okapiHeaders, vertxContext,
         GetCoursereservesCourselistingsCoursesByListingIdResponse.class, asyncResultHandler);
@@ -276,20 +276,14 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsInstructorsByListingId(String listingId, String query, int offset,
       int limit, String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
-    try {
-      String instructorQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-      if (query == null || query.isEmpty()) {
-        query = instructorQueryClause;
-      } else {
-        query = String.format("(%s) AND %s", instructorQueryClause, query);
-      }
-      PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, query, offset, limit, okapiHeaders,
-          vertxContext, GetCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
-    } catch (Exception e) {
-      String message = logAndSaveError(e);
-      asyncResultHandler.handle(Future.succeededFuture(GetCoursereservesCourselistingsInstructorsByListingIdResponse
-          .respond500WithTextPlain(getErrorResponse(message))));
+    String instructorQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
+    if (query == null || query.isEmpty()) {
+      query = instructorQueryClause;
+    } else {
+      query = String.format("%s AND (%s)", instructorQueryClause, query);
     }
+    PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, query, offset, limit, okapiHeaders,
+        vertxContext, GetCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
   }
 
   @Override
@@ -432,7 +426,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
     if (query == null || query.isEmpty()) {
       query = courseListingQueryClause;
     } else {
-      query = String.format("(%s) AND %s", courseListingQueryClause, query);
+      query = String.format("%s AND (%s)", courseListingQueryClause, query);
     }
     handleGetReserves(expand, query, offset, limit, okapiHeaders, asyncResultHandler, vertxContext);
   }
