@@ -480,52 +480,34 @@ public class CRUtil {
       if (courselisting == null) {
         return Future.succeededFuture(null);
       }
+      List<Future> futureList = new ArrayList<>();
       String termId = courselisting.getTermId();
-      String courseTypeId = courselisting.getCourseTypeId();
-      String locationId = courselisting.getLocationId();
-      String servicepointId = courselisting.getServicepointId();
-      Future<Term> termFuture;
-      Future<CourseType> coursetypeFuture;
-      Future<JsonObject> locationFuture;
-      Future<JsonObject> servicePointFuture;
       if (termId != null) {
-        termFuture = lookupTerm(termId, okapiHeaders, context);
-      } else {
-        termFuture = Future.failedFuture("No lookup");
+        futureList.add(lookupTerm(termId, okapiHeaders, context)
+            .map(CRUtil::termObjectFromTerm)
+            .onSuccess(courselisting::setTermObject));
       }
+      String courseTypeId = courselisting.getCourseTypeId();
       if (courseTypeId != null) {
-        coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
-      } else {
-        coursetypeFuture = Future.failedFuture("No lookup");
+        futureList.add(lookupCourseType(courseTypeId, okapiHeaders, context)
+            .map(CRUtil::courseTypeObjectFromCourseType)
+            .onSuccess(courselisting::setCourseTypeObject));
       }
+      String locationId = courselisting.getLocationId();
       if (locationId != null) {
-        locationFuture = lookupLocation(locationId, okapiHeaders, context);
-      } else {
-        locationFuture = Future.failedFuture("No lookup");
+        futureList.add(lookupLocation(locationId, okapiHeaders, context)
+            .map(CRUtil::locationObjectFromJson)
+            .onSuccess(courselisting::setLocationObject));
       }
+      String servicepointId = courselisting.getServicepointId();
       if (servicepointId != null) {
-        servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
-      } else {
-        servicePointFuture = Future.failedFuture("No lookup");
+        futureList.add(lookupServicepoint(servicepointId, okapiHeaders, context)
+            .map(CRUtil::servicepointObjectFromJson)
+            .onSuccess(courselisting::setServicepointObject));
       }
-      return CompositeFuture.join(termFuture, coursetypeFuture, locationFuture, servicePointFuture)
+      return CompositeFuture.join(futureList)
           .recover(x -> Future.succeededFuture())
-          .map(x -> {
-            if (termFuture.succeeded()) {
-              courselisting.setTermObject(termObjectFromTerm(termFuture.result()));
-            }
-            if (coursetypeFuture.succeeded()) {
-              courselisting.setCourseTypeObject(courseTypeObjectFromCourseType(
-                  coursetypeFuture.result()));
-            }
-            if (locationFuture.succeeded()) {
-              courselisting.setLocationObject(locationObjectFromJson(locationFuture.result()));
-            }
-            if (servicePointFuture.succeeded()) {
-              courselisting.setServicepointObject(servicepointObjectFromJson(servicePointFuture.result()));
-            }
-            return courselisting;
-          });
+          .map(x -> courselisting);
     });
   }
 
