@@ -47,15 +47,13 @@ import org.folio.rest.persist.Criteria.Limit;
 import org.folio.rest.persist.Criteria.Offset;
 import org.folio.rest.persist.PgUtil;
 
-import static org.folio.coursereserves.util.Util.getQueryWithLimit;
+import static org.folio.coursereserves.util.Util.queryCourseListing;
 import static org.folio.rest.persist.PgUtil.postgresClient;
 import org.folio.rest.persist.PostgresClient;
 import org.folio.rest.persist.cql.CQLWrapper;
 import org.folio.rest.persist.interfaces.Results;
 import org.folio.rest.tools.utils.TenantTool;
 import org.folio.rest.tools.utils.ValidationHelper;
-import org.folio.util.StringUtil;
-
 
 public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
 
@@ -217,8 +215,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsCoursesByListingId(String listingId, String query, int offset, int limit,
       String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
-    String courseQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    PgUtil.get(COURSES_TABLE, Course.class, Courses.class, getQueryWithLimit(query, courseQueryClause),
+    PgUtil.get(COURSES_TABLE, Course.class, Courses.class, queryCourseListing(query, listingId),
         offset, limit, okapiHeaders, vertxContext,
         GetCoursereservesCourselistingsCoursesByListingIdResponse.class, asyncResultHandler);
   }
@@ -240,8 +237,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void deleteCoursereservesCourselistingsCoursesByListingId(String listingId, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
 
-    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
-    PgUtil.delete(COURSES_TABLE, cql, okapiHeaders, vertxContext,
+    PgUtil.delete(COURSES_TABLE, queryCourseListing(null, listingId), okapiHeaders, vertxContext,
         DeleteCoursereservesCourselistingsCoursesByListingIdResponse.class, asyncResultHandler);
   }
 
@@ -274,8 +270,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsInstructorsByListingId(String listingId, String query, int offset,
       int limit, String lang, Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler,
       Context vertxContext) {
-    String instructorQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, getQueryWithLimit(query, instructorQueryClause),
+    PgUtil.get(INSTRUCTORS_TABLE, Instructor.class, Instructors.class, queryCourseListing(query, listingId),
         offset, limit, okapiHeaders, vertxContext,
         GetCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
   }
@@ -343,8 +338,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void deleteCoursereservesCourselistingsInstructorsByListingId(String listingId,
       Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
 
-    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
-    PgUtil.delete(INSTRUCTORS_TABLE, cql, okapiHeaders, vertxContext,
+    PgUtil.delete(INSTRUCTORS_TABLE, queryCourseListing(null, listingId), okapiHeaders, vertxContext,
         DeleteCoursereservesCourselistingsInstructorsByListingIdResponse.class, asyncResultHandler);
   }
 
@@ -416,8 +410,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void getCoursereservesCourselistingsReservesByListingId(String listingId, String expand, String query,
       int offset, int limit, String lang, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    String courseListingQueryClause = String.format("courseListingId == %s", StringUtil.cqlEncode(listingId));
-    handleGetReserves(expand, getQueryWithLimit(query, courseListingQueryClause),
+    handleGetReserves(expand, queryCourseListing(query, listingId),
         offset, limit, okapiHeaders, asyncResultHandler, vertxContext);
   }
 
@@ -437,8 +430,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   public void deleteCoursereservesCourselistingsReservesByListingId(String listingId, Map<String, String> okapiHeaders,
       Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
 
-    String cql = "courseListingId == " + StringUtil.cqlEncode(listingId);
-    PgUtil.delete(RESERVES_TABLE, cql, okapiHeaders, vertxContext,
+    PgUtil.delete(RESERVES_TABLE, queryCourseListing(null, listingId), okapiHeaders, vertxContext,
         DeleteCoursereservesCourselistingsReservesByListingIdResponse.class, asyncResultHandler);
   }
 

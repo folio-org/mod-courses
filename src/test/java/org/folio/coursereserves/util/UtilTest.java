@@ -149,8 +149,8 @@ public class UtilTest {
 
   @Test
   public void getQueryWithLimit() {
-    assertEquals("l", Util.getQueryWithLimit(null, "l"));
-    assertEquals("l", Util.getQueryWithLimit("", "l"));
-    assertEquals("l AND (a OR B)", Util.getQueryWithLimit("a OR B", "l"));
+    assertEquals("courseListingId == \"l\"", Util.queryCourseListing(null, "l"));
+    assertEquals("courseListingId == \"l\"", Util.queryCourseListing("", "l"));
+    assertEquals("courseListingId == \"l\" AND (a OR B)", Util.queryCourseListing("a OR B", "l"));
   }
 }
