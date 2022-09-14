@@ -147,4 +147,10 @@ public class UtilTest {
     assertEquals("2", reserve.getCopiedItem().getCopy());
   }
 
+  @Test
+  public void getQueryWithLimit() {
+    assertEquals("courseListingId == \"l\"", Util.queryCourseListing(null, "l"));
+    assertEquals("courseListingId == \"l\"", Util.queryCourseListing("", "l"));
+    assertEquals("courseListingId == \"l\" AND (a OR B)", Util.queryCourseListing("a OR B", "l"));
+  }
 }

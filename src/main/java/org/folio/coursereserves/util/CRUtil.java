@@ -4,7 +4,6 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -34,6 +33,7 @@ import static org.folio.rest.impl.CourseAPI.PROCESSING_STATUSES_TABLE;
 import static org.folio.rest.impl.CourseAPI.RESERVES_TABLE;
 import static org.folio.rest.impl.CourseAPI.TERMS_TABLE;
 
+import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.WebClientFactory;
 import org.folio.rest.jaxrs.model.Contributor;
 import org.folio.rest.jaxrs.model.CopiedItem;
@@ -114,88 +114,54 @@ public class CRUtil {
     return acceptMap;
   }
 
-  public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
-      Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
-    Promise<String> itemIdPromise = Promise.promise();
+  private static Future<String> getItemId(Reserve reserve, Map<String, String> okapiHeaders, Context context) {
     String barcode;
-    if(reserve.getCopiedItem() != null) {
+    if (reserve.getCopiedItem() != null) {
       barcode = reserve.getCopiedItem().getBarcode();
     } else {
       barcode = null;
     }
     String itemId = reserve.getItemId();
-    if(itemId != null && barcode == null) {
-      itemIdPromise.complete(itemId);
-    } else if(barcode != null) {
-      lookupItemByBarcode(barcode, okapiHeaders, context)
-          .onComplete(barcodeItemLookupRes -> {
-        if(barcodeItemLookupRes.failed()) {
-          itemIdPromise.fail(barcodeItemLookupRes.cause());
-        } else {
-          if(barcodeItemLookupRes.result() != null) {
-            itemIdPromise.complete(barcodeItemLookupRes.result().getString("id"));
-          } else {
-            itemIdPromise.fail("No item found for barcode " + barcode);
-          }
+    if (itemId != null && barcode == null) {
+      return Future.succeededFuture(itemId);
+    } else if (barcode != null) {
+      return lookupItemByBarcode(barcode, okapiHeaders, context).map(barcodeItemLookupRes -> {
+        if (barcodeItemLookupRes == null) {
+          throw new RuntimeException("No item found for barcode " + barcode);
         }
+        return barcodeItemLookupRes.getString("id");
       });
     } else {
-      promise.fail("Must provide item id or item barcode to populate copied items");
-      return promise.future();
+      return Future.failedFuture("Must provide item id or item barcode to populate copied items");
     }
-    itemIdPromise.future().onComplete(itemIdRes -> {
-      if(itemIdRes.failed()) {
-        logger.error("Failed to get item id {}", itemIdRes.cause().getMessage());
-        promise.fail(itemIdRes.cause());
-      } else {
-        reserve.setItemId(itemIdRes.result());
-        String retrievedItemId = itemIdRes.result();
-        logger.info("Looking up information for item {} from inventory module",
-            retrievedItemId);
-        lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
-            .onComplete(inventoryRes -> {
-          if(inventoryRes.failed()) {
-            logger.error("Unable to do inventory lookup: {}", inventoryRes.cause().getMessage());
-            promise.fail(inventoryRes.cause());
-          } else {
-            try {
-              logger.info("Attempting to populate copied items with inventory lookup for item id {}",
-                  retrievedItemId);
-              populateReserveCopiedItemFromJson(reserve, inventoryRes.result());
-              promise.complete(inventoryRes.result());
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          }
+  }
+
+  public static Future<JsonObject> populateReserveInventoryCache(Reserve reserve,
+      Map<String, String> okapiHeaders, Context context) {
+    return getItemId(reserve, okapiHeaders, context)
+        .compose(retrievedItemId -> {
+          reserve.setItemId(retrievedItemId);
+          logger.info("Looking up information for item {} from inventory module",
+              retrievedItemId);
+          return lookupItemHoldingsInstanceByItemId(retrievedItemId, okapiHeaders, context)
+              .map(inventoryRes -> {
+                logger.info("Attempting to populate copied items with inventory lookup for item id {}",
+                    retrievedItemId);
+                populateReserveCopiedItemFromJson(reserve, inventoryRes);
+                return inventoryRes;
+              });
         });
-      }
-    });
-    return promise.future();
   }
 
   public static Future<List<Reserve>> expandListOfReserves(List<Reserve> listOfReserves,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Reserve>> promise = Promise.promise();
-    List<Future> expandedReserveFutureList = new ArrayList<>();
-    for(Reserve reserve : listOfReserves) {
-      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(),
-          okapiHeaders, context, true));
+    List<Future<Reserve>> expandedReserveFutureList = new ArrayList<>();
+    for (Reserve reserve : listOfReserves) {
+      expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(), okapiHeaders, context));
     }
-    CompositeFuture compositeFuture = CompositeFuture.all(expandedReserveFutureList);
-    compositeFuture.onComplete(expandReservesRes -> {
-      if(expandReservesRes.failed()) {
-        promise.fail(expandReservesRes.cause());
-      } else {
-        List<Reserve> newListOfReserves = new ArrayList<>();
-        for( Future reserveFuture : expandedReserveFutureList ) {
-          Future<Reserve> f = (Future<Reserve>)reserveFuture;
-          newListOfReserves.add(f.result());
-        }
-        promise.complete(newListOfReserves);
-      }
-    });
-    return promise.future();
+    return GenericCompositeFuture
+        .all(expandedReserveFutureList)
+        .map(CompositeFuture::list);
   }
 
   public static String getStringValueFromObjectArray(String fieldName, JsonArray array) {
@@ -236,10 +202,10 @@ public class CRUtil {
       JsonArray eaHoldingsJsonArray = holdingsJson.getJsonArray("electronicAccess");
       String uri = getStringValueFromObjectArray("uri", eaItemJsonArray);
       String publicNote = getStringValueFromObjectArray("publicNote", eaItemJsonArray);
-      if(uri == null) {
+      if (uri == null) {
         uri = getStringValueFromObjectArray("uri", eaHoldingsJsonArray);
       }
-      if(publicNote == null) {
+      if (publicNote == null) {
         publicNote = getStringValueFromObjectArray("publicNote", eaHoldingsJsonArray);
       }
       copiedItem.setUri(uri);
@@ -248,26 +214,26 @@ public class CRUtil {
       logger.info("Unable to copy electronic access field from item: {}", e.getMessage());
     }
     String permanentLocationId = itemJson.getString("permanentLocationId");
-    if(permanentLocationId == null) {
+    if (permanentLocationId == null) {
       permanentLocationId = holdingsJson.getString("permanentLocationId");
     }
     copiedItem.setPermanentLocationId(permanentLocationId);
     copiedItem.setTemporaryLocationId(itemJson.getString("temporaryLocationId"));
     String callNumber = makeCallNumber(itemJson.getString("itemLevelCallNumberPrefix"),
         itemJson.getString("itemLevelCallNumber"), itemJson.getString("itemLevelCallNumberSuffix"));
-    if(callNumber == null) {
+    if (callNumber == null) {
       callNumber = makeCallNumber(holdingsJson.getString("callNumberPrefix"),
           holdingsJson.getString("callNumber"), holdingsJson.getString("callNumberSuffix"));
     }
     copiedItem.setCallNumber(callNumber);
     String temporaryLoanTypeId = itemJson.getString("temporaryLoanTypeId");
-    if(reserve.getTemporaryLoanTypeId() == null) {
+    if (reserve.getTemporaryLoanTypeId() == null) {
       reserve.setTemporaryLoanTypeId(temporaryLoanTypeId);
     }
     JsonArray contributors = instanceJson.getJsonArray("contributors");
-    if(contributors != null && contributors.size() > 0) {
+    if (contributors != null && contributors.size() > 0) {
       List<Contributor> contributorList = new ArrayList<>();
-      for(int i = 0; i < contributors.size(); i++) {
+      for (int i = 0; i < contributors.size(); i++) {
         JsonObject contributorJson = contributors.getJsonObject(i);
         Contributor contributor = new Contributor();
         contributor.setContributorNameTypeId(contributorJson.getString("contributorNameTypeId"));
@@ -281,9 +247,9 @@ public class CRUtil {
     }
 
     JsonArray publishers = instanceJson.getJsonArray("publication");
-    if(publishers != null && publishers.size() > 0) {
+    if (publishers != null && publishers.size() > 0) {
       List<Publication> publisherList = new ArrayList<>();
-      for(int i = 0; i < publishers.size(); i++) {
+      for (int i = 0; i < publishers.size(); i++) {
         JsonObject publisherJson = publishers.getJsonObject(i);
         Publication publication = new Publication();
         publication.setPlace(publisherJson.getString("place"));
@@ -299,211 +265,145 @@ public class CRUtil {
 
   public static Future<JsonObject> lookupItemHoldingsInstanceByItemId(String itemId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise promise = Promise.promise();
-    JsonObject result = new JsonObject();
     logger.info("Making request for item at {}/{}", ITEMS_ENDPOINT, itemId);
-    makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
-        HttpMethod.GET, null, null, 200).onComplete(itemRes -> {
-      if(itemRes.failed()) {
-        logger.error("Unable to lookup item by id {}", itemId);
-        promise.fail(itemRes.cause());
-      } else {
-        JsonObject itemJson = itemRes.result();
-        String holdingsId = itemJson.getString("holdingsRecordId");
-        result.put("item", itemJson);
-        logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
-        makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
-            HttpMethod.GET, null, null, 200).onComplete(holdingsRes -> {
-          if(holdingsRes.failed()) {
-            promise.fail(holdingsRes.cause());
-          } else {
-            JsonObject holdingsJson = holdingsRes.result();
-            String instanceId = holdingsJson.getString("instanceId");
-            result.put("holdings", holdingsJson);
-            logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
-            makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT
-                + "/" + instanceId, HttpMethod.GET, null, null, 200).onComplete(
-                instanceRes -> {
-              if(instanceRes.failed()) {
-                promise.fail(instanceRes.cause());
-              } else {
-                JsonObject instanceJson = instanceRes.result();
+    JsonObject result = new JsonObject();
+    return makeOkapiRequest(context.owner(), okapiHeaders, ITEMS_ENDPOINT + "/" + itemId,
+        HttpMethod.GET, null, null, 200)
+        .compose(itemJson -> {
+          String holdingsId = itemJson.getString("holdingsRecordId");
+          result.put("item", itemJson);
+          logger.info("Making request for holdings at {}/{}", HOLDINGS_ENDPOINT, holdingsId);
+          return makeOkapiRequest(context.owner(), okapiHeaders, HOLDINGS_ENDPOINT + "/" + holdingsId,
+              HttpMethod.GET, null, null, 200);
+        })
+        .compose(holdingsJson -> {
+          String instanceId = holdingsJson.getString("instanceId");
+          result.put("holdings", holdingsJson);
+          logger.info("Making request for instance at {}/{}", INSTANCES_ENDPOINT, instanceId);
+          return makeOkapiRequest(context.owner(), okapiHeaders, INSTANCES_ENDPOINT + "/" + instanceId,
+              HttpMethod.GET, null, null, 200)
+              .map(instanceJson -> {
                 result.put("instance", instanceJson);
-                logger.info("Inventory lookup complete");
-                promise.complete(result);
-              }
-            });
-          }
+                return result;
+              });
         });
-      }
-    });
-    return promise.future();
   }
 
   public static Future<JsonObject> lookupUserAndGroupByUserId(String userId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String userPath = "/users/" + userId;
     JsonObject result = new JsonObject();
-    makeOkapiRequest(context.owner(), okapiHeaders, userPath, HttpMethod.GET,
-        null, null, 200).onComplete(userRes -> {
-      try {
-        if(userRes.failed()) {
-          promise.fail(userRes.cause());
-        } else {
-          result.put("user", userRes.result());
-          String groupId = userRes.result().getString("patronGroup");
+    return makeOkapiRequest(context.owner(), okapiHeaders, userPath, HttpMethod.GET,
+        null, null, 200)
+        .compose(userRes -> {
+          result.put("user", userRes);
+          String groupId = userRes.getString("patronGroup");
           String groupPath = "/groups/" + groupId;
-          makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
-              null, null, 200).onComplete(groupRes -> {
-            try {
-              if(groupRes.failed()) {
-                promise.fail(groupRes.cause());
-              } else {
-                result.put("group", groupRes.result());
-                promise.complete(result);
-              }
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          });
-        }
-      } catch(Exception e) {
-        promise.fail(e);
-      }
-    });
-    return promise.future();
+          return makeOkapiRequest(context.owner(), okapiHeaders, groupPath, HttpMethod.GET,
+              null, null, 200);
+        })
+        .map(groupRes -> {
+          result.put("group", groupRes);
+          return result;
+        });
   }
 
   public static Future<JsonObject> makeOkapiRequest(Vertx vertx,
       Map<String, String> okapiHeaders, String requestPath, HttpMethod method,
       Map<String, String> extraHeaders, String payload, Integer expectedCode) {
-    Promise<JsonObject> promise = Promise.promise();
     WebClient client = WebClientFactory.getWebClient(vertx);
     MultiMap headers = MultiMap.caseInsensitiveMultiMap();
     MultiMap originalHeaders = MultiMap.caseInsensitiveMultiMap();
 
     originalHeaders.setAll(okapiHeaders);
     String okapiUrl = originalHeaders.get(OKAPI_URL_HEADER);
-    if(okapiUrl == null) {
-      promise.fail("No okapi URL found in headers");
-      return promise.future();
+    if (okapiUrl == null) {
+      return Future.failedFuture("No okapi URL found in headers");
     }
     String requestUrl = okapiUrl + requestPath;
-    if(originalHeaders.contains(OKAPI_TOKEN_HEADER)) {
+    if (originalHeaders.contains(OKAPI_TOKEN_HEADER)) {
       headers.add(OKAPI_TOKEN_HEADER, originalHeaders.get(OKAPI_TOKEN_HEADER));
     }
-    if(originalHeaders.contains(OKAPI_TENANT_HEADER)) {
+    if (originalHeaders.contains(OKAPI_TENANT_HEADER)) {
       headers.add(OKAPI_TENANT_HEADER, originalHeaders.get(OKAPI_TENANT_HEADER));
     }
     headers.add("content-type", "application/json");
     headers.add("accept", "application/json");
-    if(extraHeaders != null) {
-      for(Map.Entry<String, String> entry : extraHeaders.entrySet()) {
-        if(entry.getKey() != null && entry.getValue() != null) {
+    if (extraHeaders != null) {
+      for (Map.Entry<String, String> entry : extraHeaders.entrySet()) {
+        if (entry.getKey() != null && entry.getValue() != null) {
           headers.add(entry.getKey(), entry.getValue());
         }
       }
     }
     logger.debug("Creating request for url {}", requestUrl);
     HttpRequest<Buffer> request = client.requestAbs(method, requestUrl);
-    for(Map.Entry<String, String> entry : headers.entries()) {
+    for (Map.Entry<String, String> entry : headers.entries()) {
       String key = entry.getKey();
       String value = entry.getValue();
-      if( key != null && value != null) {
+      if ( key != null && value != null) {
         request.putHeader(key, value);
       }
     }
     Future<HttpResponse<Buffer>> sentRequestFuture;
-    if(method == HttpMethod.PUT || method == HttpMethod.POST ) {
+    if (method == HttpMethod.PUT || method == HttpMethod.POST ) {
       sentRequestFuture = request.sendBuffer(Buffer.buffer(payload));
     } else {
       sentRequestFuture = request.send();
     }
-    sentRequestFuture.onComplete(res -> {
-      if(res.succeeded()) {
-        try {
-          HttpResponse<Buffer> result = res.result();
-          String response = result.bodyAsString();
-          if(expectedCode != result.statusCode()) {
-            String message = String.format(
-                "Expected status code %s for %s request to url %s, got %s: %s",
-                expectedCode, method.toString(), requestUrl, result.statusCode(),
-                response);
-            logger.error(message);
-            promise.fail(message);
-          } else {
-            if(response != null && !response.isEmpty()) {
-              promise.complete(new JsonObject(response));
-            } else {
-              promise.complete(null);
-            }
-          }
-        } catch(Exception e) {
-          promise.fail("Error getting result " + e.getMessage());
-        }
-      } else {
-        promise.fail(res.cause());
+    return sentRequestFuture.compose(result -> {
+      String response = result.bodyAsString();
+      if (expectedCode != result.statusCode()) {
+        String message = String.format(
+            "Expected status code %s for %s request to url %s, got %s: %s",
+            expectedCode, method.toString(), requestUrl, result.statusCode(),
+            response);
+        logger.error(message);
+        return Future.failedFuture(message);
       }
+      if (response == null || response.isEmpty()) {
+        return Future.succeededFuture(null);
+      }
+      return Future.succeededFuture(new JsonObject(response));
     });
-
-    return promise.future();
   }
 
   public static Future<Reserve> lookupExpandedReserve(String reserveId,
-      Map<String, String> okapiHeaders, Context context, Boolean expand) {
-    Promise<Reserve> promise = Promise.promise();
-    getReserveById(reserveId, okapiHeaders, context).onComplete(reserveRes -> {
-      if(reserveRes.failed()) {
-        promise.fail(reserveRes.cause());
-      } else if(expand == false ||  reserveRes.result() == null ||
-          reserveRes.result().getCopiedItem() == null) {
-        promise.complete(reserveRes.result());
-      } else {
-        try {
-          Reserve reserve = reserveRes.result();
-          Future<JsonObject> tempLocationFuture = lookupLocation(
-              reserve.getCopiedItem().getTemporaryLocationId(), okapiHeaders, context);
-          Future<JsonObject> permLocationFuture = lookupLocation(
-              reserve.getCopiedItem().getPermanentLocationId(), okapiHeaders, context);
-          Future<ProcessingStatus> processingStatusFuture;
-          if(reserve.getProcessingStatusId() != null) {
-            processingStatusFuture = lookupProcessingStatus(
-              reserve.getProcessingStatusId(), okapiHeaders, context);
-          } else {
-            processingStatusFuture = Future.failedFuture("No processing status id");
-          }
-          Future<CopyrightStatus> copyrightStatusFuture;
-          if(reserve.getCopyrightTracking() != null
-              && reserve.getCopyrightTracking().getCopyrightStatusId() != null) {
-            copyrightStatusFuture = lookupCopyrightStatus(
-            reserve.getCopyrightTracking().getCopyrightStatusId(), okapiHeaders,
-                context);
-          } else {
-            copyrightStatusFuture = Future.failedFuture("No copyright tracking object");
-          }
-          Future<JsonObject> loanTypeFuture;
-          if(reserve.getTemporaryLoanTypeId() != null) {
-            loanTypeFuture = lookupLoanType(reserve.getTemporaryLoanTypeId(),
-                okapiHeaders, context);
-          } else {
-            loanTypeFuture = Future.failedFuture("No temporary loan type id");
-          }
-          populateReserveForRetrieval(reserve, tempLocationFuture, permLocationFuture,
-              processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
-              .onComplete(populateRes -> {
-            if(populateRes.failed()) {
-              promise.fail(populateRes.cause());
-            } else {
-              promise.complete(reserve);
-            }
-          });
-        } catch(Exception e) {
-          promise.fail(e);
-        }
+      Map<String, String> okapiHeaders, Context context) {
+    return getReserveById(reserveId, okapiHeaders, context).compose(reserve -> {
+      if (reserve == null || reserve.getCopiedItem() == null) {
+        return Future.succeededFuture(reserve);
       }
+      Future<JsonObject> tempLocationFuture = lookupLocation(
+          reserve.getCopiedItem().getTemporaryLocationId(), okapiHeaders, context);
+      Future<JsonObject> permLocationFuture = lookupLocation(
+          reserve.getCopiedItem().getPermanentLocationId(), okapiHeaders, context);
+      Future<ProcessingStatus> processingStatusFuture;
+      if (reserve.getProcessingStatusId() != null) {
+        processingStatusFuture = lookupProcessingStatus(
+            reserve.getProcessingStatusId(), okapiHeaders, context);
+      } else {
+        processingStatusFuture = Future.failedFuture("No processing status id");
+      }
+      Future<CopyrightStatus> copyrightStatusFuture;
+      if (reserve.getCopyrightTracking() != null
+          && reserve.getCopyrightTracking().getCopyrightStatusId() != null) {
+        copyrightStatusFuture = lookupCopyrightStatus(
+            reserve.getCopyrightTracking().getCopyrightStatusId(), okapiHeaders,
+            context);
+      } else {
+        copyrightStatusFuture = Future.failedFuture("No copyright tracking object");
+      }
+      Future<JsonObject> loanTypeFuture;
+      if (reserve.getTemporaryLoanTypeId() != null) {
+        loanTypeFuture = lookupLoanType(reserve.getTemporaryLoanTypeId(),
+            okapiHeaders, context);
+      } else {
+        loanTypeFuture = Future.failedFuture("No temporary loan type id");
+      }
+      return populateReserveForRetrieval(reserve, tempLocationFuture, permLocationFuture,
+          processingStatusFuture, copyrightStatusFuture, loanTypeFuture).map(x -> reserve);
     });
-    return promise.future();
   }
 
   public static Future<JsonObject> lookupItemByBarcode(String barcode,
@@ -515,202 +415,135 @@ public class CRUtil {
     logger.debug("Looking up item by barcode with url {}", itemRequestUrl);
     return makeOkapiRequest(context.owner(), okapiHeaders, itemRequestUrl, HttpMethod.GET,
         null, null, 200)
-    .map(jsonObject -> {
-      int totalRecords = jsonObject.getInteger("totalRecords");
-      if (totalRecords > 1) {
-        throw new IllegalStateException(
-            "Expected 1 result for barcode " + barcode + ", got " + totalRecords);
-      }
-      if (totalRecords < 1) {
-        return null;
-      }
-      return jsonObject.getJsonArray("items").getJsonObject(0);
-    });
+        .map(jsonObject -> {
+          int totalRecords = jsonObject.getInteger("totalRecords");
+          if (totalRecords > 1) {
+            throw new IllegalStateException(
+                "Expected 1 result for barcode " + barcode + ", got " + totalRecords);
+          }
+          if (totalRecords < 1) {
+            return null;
+          }
+          return jsonObject.getJsonArray("items").getJsonObject(0);
+        });
   }
 
   public static Future<Void> populateReserveForRetrieval(Reserve reserve,
       Future<JsonObject> tempLocationFuture, Future<JsonObject> permLocationFuture,
       Future<ProcessingStatus> processingStatusFuture,
       Future<CopyrightStatus> copyrightStatusFuture, Future<JsonObject> loanTypeFuture) {
-    Promise promise = Promise.promise();
-    List<Future> futureList = new ArrayList<>();
-    futureList.add(tempLocationFuture);
-    futureList.add(permLocationFuture);
-    futureList.add(processingStatusFuture);
-    futureList.add(copyrightStatusFuture);
-    futureList.add(loanTypeFuture);
-    CompositeFuture compositeFuture = CompositeFuture.join(futureList);
-    compositeFuture.onComplete(compRes -> {
-      try {
-        if(reserve.getCopiedItem() != null) {
-          if(tempLocationFuture.succeeded()) {
-            reserve.getCopiedItem().setTemporaryLocationObject(
-                temporaryLocationObjectFromJson(tempLocationFuture.result()));
+    return CompositeFuture
+        .join(tempLocationFuture, permLocationFuture, processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
+        .recover(x -> Future.succeededFuture())
+        .map(x -> {
+          if (reserve.getCopiedItem() != null) {
+            if (tempLocationFuture.succeeded()) {
+              reserve.getCopiedItem().setTemporaryLocationObject(
+                  temporaryLocationObjectFromJson(tempLocationFuture.result()));
+            } else {
+              logger.info("TemporaryLocationObject lookup failed {}",
+                  tempLocationFuture.cause().getMessage());
+            }
+            if (permLocationFuture.succeeded()) {
+              reserve.getCopiedItem().setPermanentLocationObject(
+                  temporaryLocationObjectFromJson(permLocationFuture.result()));
+            } else {
+              logger.info("PermanentLocationObject lookup failed {}",
+                  permLocationFuture.cause().getMessage());
+            }
           } else {
-            logger.info("TemporaryLocationObject lookup failed {}",
-                tempLocationFuture.cause().getMessage());
+            logger.info("No copied item field in reserve to populate");
           }
-          if(permLocationFuture.succeeded()) {
-            reserve.getCopiedItem().setPermanentLocationObject(
-                temporaryLocationObjectFromJson(permLocationFuture.result()));
-          } else {
-            logger.info("PermanentLocationObject lookup failed {}",
-                permLocationFuture.cause().getMessage());
+          if (processingStatusFuture.succeeded()) {
+            ProcessingStatusObject pso = new ProcessingStatusObject();
+            copyFields(pso, processingStatusFuture.result());
+            reserve.setProcessingStatusObject(pso);
           }
-        } else {
-          logger.info("No copied item field in reserve to populate");
-        }
-        if(processingStatusFuture.succeeded()) {
-          ProcessingStatusObject pso = new ProcessingStatusObject();
-          copyFields(pso, processingStatusFuture.result());
-          reserve.setProcessingStatusObject(pso);
-        }
-        if(copyrightStatusFuture.succeeded()) {
-          CopyrightStatusObject cso = new CopyrightStatusObject();
-          copyFields(cso, copyrightStatusFuture.result());
-          reserve.getCopyrightTracking().setCopyrightStatusObject(cso);
-        }
-        if(loanTypeFuture.succeeded()) {
-          TemporaryLoanTypeObject tlto = temporaryLoanTypeObjectFromJson(
-              loanTypeFuture.result());
-          reserve.setTemporaryLoanTypeObject(tlto);
-        }
-        promise.complete();
-      } catch(Exception e) {
-        promise.fail(e);
-      }
-    });
-    return promise.future();
+          if (copyrightStatusFuture.succeeded()) {
+            CopyrightStatusObject cso = new CopyrightStatusObject();
+            copyFields(cso, copyrightStatusFuture.result());
+            reserve.getCopyrightTracking().setCopyrightStatusObject(cso);
+          }
+          if (loanTypeFuture.succeeded()) {
+            TemporaryLoanTypeObject tlto = temporaryLoanTypeObjectFromJson(
+                loanTypeFuture.result());
+            reserve.setTemporaryLoanTypeObject(tlto);
+          }
+          return null;
+        });
   }
 
   public static Future<CourseListing> lookupExpandedCourseListing(String courseListingId,
-      Map<String, String> okapiHeaders, Context context, Boolean expandTerm) {
-    Promise<CourseListing> promise = Promise.promise();
-    getCourseListingById(courseListingId, okapiHeaders, context).onComplete(clRes -> {
-      if(clRes.failed()) {
-        promise.fail(clRes.cause());
-      } else if(clRes.result() == null) {
-        promise.complete(null);
-      } else {
-        try {
-          CourseListing courselisting = clRes.result();
-          String termId = courselisting.getTermId();
-          String courseTypeId = courselisting.getCourseTypeId();
-          String locationId = courselisting.getLocationId();
-          String servicepointId = courselisting.getServicepointId();
-          Future<Term> termFuture;
-          Future<CourseType> coursetypeFuture;
-          Future<JsonObject> locationFuture;
-          Future<JsonObject> servicePointFuture;
-          if(expandTerm && termId != null) {
-            termFuture = lookupTerm(termId, okapiHeaders, context);
-          } else {
-            termFuture = Future.failedFuture("No lookup");
-          }
-          if(expandTerm && courseTypeId != null) {
-            coursetypeFuture = lookupCourseType(courseTypeId, okapiHeaders, context);
-          } else {
-            coursetypeFuture = Future.failedFuture("No lookup");
-          }
-          if(expandTerm && locationId != null) {
-            locationFuture = lookupLocation(locationId, okapiHeaders, context);
-          } else {
-            locationFuture = Future.failedFuture("No lookup");
-          }
-          if(expandTerm && servicepointId != null) {
-            servicePointFuture = lookupServicepoint(servicepointId, okapiHeaders, context);
-          } else {
-            servicePointFuture = Future.failedFuture("No lookup");
-          }
-
-          List<Future> futureList = new ArrayList<>();
-          futureList.add(termFuture);
-          futureList.add(coursetypeFuture);
-          futureList.add(locationFuture);
-          futureList.add(servicePointFuture);
-          CompositeFuture compositeFuture = CompositeFuture.join(futureList);
-          compositeFuture.onComplete(compRes -> {
-            try {
-              if(termFuture.succeeded()) {
-                courselisting.setTermObject(termObjectFromTerm(termFuture.result()));
-              }
-              if(coursetypeFuture.succeeded()) {
-                courselisting.setCourseTypeObject(courseTypeObjectFromCourseType(
-                    coursetypeFuture.result()));
-              }
-              if(locationFuture.succeeded()) {
-                courselisting.setLocationObject(locationObjectFromJson(locationFuture.result()));
-              }
-              if(servicePointFuture.succeeded()) {
-                courselisting.setServicepointObject(servicepointObjectFromJson(servicePointFuture.result()));
-              }
-              promise.complete(courselisting);
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          });
-        } catch(Exception e) {
-          promise.fail(e);
-        }
+      Map<String, String> okapiHeaders, Context context) {
+    return getCourseListingById(courseListingId, okapiHeaders, context).compose(courselisting -> {
+      if (courselisting == null) {
+        return Future.succeededFuture(null);
       }
+      List<Future> futureList = new ArrayList<>();
+      String termId = courselisting.getTermId();
+      if (termId != null) {
+        futureList.add(lookupTerm(termId, okapiHeaders, context)
+            .map(CRUtil::termObjectFromTerm)
+            .onSuccess(courselisting::setTermObject));
+      }
+      String courseTypeId = courselisting.getCourseTypeId();
+      if (courseTypeId != null) {
+        futureList.add(lookupCourseType(courseTypeId, okapiHeaders, context)
+            .map(CRUtil::courseTypeObjectFromCourseType)
+            .onSuccess(courselisting::setCourseTypeObject));
+      }
+      String locationId = courselisting.getLocationId();
+      if (locationId != null) {
+        futureList.add(lookupLocation(locationId, okapiHeaders, context)
+            .map(CRUtil::locationObjectFromJson)
+            .onSuccess(courselisting::setLocationObject));
+      }
+      String servicepointId = courselisting.getServicepointId();
+      if (servicepointId != null) {
+        futureList.add(lookupServicepoint(servicepointId, okapiHeaders, context)
+            .map(CRUtil::servicepointObjectFromJson)
+            .onSuccess(courselisting::setServicepointObject));
+      }
+      return CompositeFuture.join(futureList)
+          .recover(x -> Future.succeededFuture())
+          .map(x -> courselisting);
     });
-    return promise.future();
   }
 
   /* Basic lookup for courselisting, wrapped in a future */
   public static Future<CourseListing> getCourseListingById(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CourseListing> promise = Promise.promise();
     logger.info("Looking up course listing for id '{}'",courseListingId);
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COURSE_LISTINGS_TABLE, courseListingId, CourseListing.class,
-        courseListingReply -> {
-      if(courseListingReply.failed()) {
-        promise.fail(courseListingReply.cause());
-      } else if(courseListingReply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(courseListingReply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COURSE_LISTINGS_TABLE, courseListingId, CourseListing.class);
   }
 
   public static Future<Reserve> getReserveById(String reserveId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Reserve> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(RESERVES_TABLE, reserveId, Reserve.class,
-        reserveReply -> {
-      if(reserveReply.failed()) {
-        promise.fail(reserveReply.cause());
-      } else {
-        promise.complete(reserveReply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(RESERVES_TABLE, reserveId, Reserve.class);
   }
 
   public static void populatePojoFromJson(Object pojo, JsonObject json,
       List<PopulateMapping> mapList) throws NoSuchMethodException,
       IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-    for( PopulateMapping popMap : mapList ) {
-      Object value = null;
-      Method method = null;
-      if(popMap.type.equals(ImportType.STRING)) {
+    for (PopulateMapping popMap : mapList ) {
+      Object value;
+      Method method;
+      if (popMap.type.equals(ImportType.STRING)) {
         value = json.getString(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, String.class);
-      } else if(popMap.type.equals(ImportType.INTEGER)) {
+      } else if (popMap.type.equals(ImportType.INTEGER)) {
         value = json.getInteger(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, Integer.class);
-      } else if(popMap.type.equals(ImportType.BOOLEAN)) {
+      } else if (popMap.type.equals(ImportType.BOOLEAN)) {
         value = json.getBoolean(popMap.fieldName);
         method = pojo.getClass().getMethod(popMap.methodName, Boolean.class);
-      } else if(popMap.type.equals(ImportType.STRINGLIST)) {
+      } else if (popMap.type.equals(ImportType.STRINGLIST)) {
         List<String> stringList = new ArrayList<>();
         JsonArray jsonArray = json.getJsonArray(popMap.fieldName);
-        if(jsonArray != null) {
-          for(Object ob : jsonArray) {
+        if (jsonArray != null) {
+          for (Object ob : jsonArray) {
             stringList.add((String) ob);
           }
         }
@@ -719,23 +552,23 @@ public class CRUtil {
       } else {
         throw new RuntimeException(popMap.type + " is not a valid type");
       }
-      if(value != null) {
+      if (value != null) {
         method.invoke(pojo, value);
       }
     }
   }
 
   public static void copyFields(Object destinationPojo, Object sourcePojo) {
-    if(destinationPojo == null || sourcePojo == null) {
+    if (destinationPojo == null || sourcePojo == null) {
       return;
     }
     Method[] destinationMethods = destinationPojo.getClass().getMethods();
     String patternString = "set(.+)";
     Pattern pattern = Pattern.compile(patternString);
-    for(Method method : destinationMethods) {
+    for (Method method : destinationMethods) {
       String name = method.getName();
       Matcher matcher = pattern.matcher(name);
-      if(!matcher.find()) {
+      if (!matcher.find()) {
         continue;
       }
       String methodPart = matcher.group(1);
@@ -751,320 +584,145 @@ public class CRUtil {
 
   public static Future<JsonObject> lookupLocation(String locationId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String locationPath = LOCATIONS_ENDPOINT + "/" + locationId;
     logger.debug("Making request for location at {}", locationPath);
-    makeOkapiRequest(context.owner(), okapiHeaders, locationPath, HttpMethod.GET,
-        null, null, 200).onComplete(locationRes-> {
-      if (locationRes.failed()) {
-        logger.error("Location request failed: {}", locationRes.cause().getMessage());
-        promise.fail(locationRes.cause());
-      } else {
-        logger.debug("Location request succeeded");
-        JsonObject locationJson = locationRes.result();
-        promise.complete(locationJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, locationPath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<JsonObject> lookupLoanType(String loanTypeId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String loanTypePath = LOAN_TYPES_ENDPOINT + "/" + loanTypeId;
     logger.debug("Making request for location at {}", loanTypePath);
-    makeOkapiRequest(context.owner(), okapiHeaders, loanTypePath, HttpMethod.GET,
-        null, null, 200).onComplete(loanTypeRes-> {
-      if(loanTypeRes.failed()) {
-        logger.error("Loan type request failed");
-        promise.fail(loanTypeRes.cause());
-      } else {
-        logger.debug("Loan type request succeeded");
-        JsonObject loanTypeJson = loanTypeRes.result();
-        promise.complete(loanTypeJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, loanTypePath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<JsonObject> lookupServicepoint(String servicepointId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<JsonObject> promise = Promise.promise();
     String servicePointPath = SERVICE_POINTS_ENDPOINT + "/" + servicepointId;
     logger.debug("Making request for servicepoint at {}", servicePointPath);
-    makeOkapiRequest(context.owner(), okapiHeaders, servicePointPath,
-        HttpMethod.GET, null, null, 200).onComplete(spRes -> {
-      if(spRes.failed()) {
-        promise.fail(spRes.cause());
-      } else {
-        JsonObject spJson = spRes.result();
-        promise.complete(spJson);
-      }
-    });
-    return promise.future();
+    return makeOkapiRequest(context.owner(), okapiHeaders, servicePointPath,
+        HttpMethod.GET, null, null, 200);
   }
 
   public static Future<List<Instructor>> lookupInstructorsForCourseListing(
-      String courseListingId, Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Instructor>> promise = Promise.promise();
-    try {
-      PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-      Criteria idCrit = new Criteria();
-      idCrit.addField("'courseListingId'");
-      idCrit.setOperation("=");
-      idCrit.setVal(courseListingId);
-      Criterion criterion = new Criterion(idCrit);
-      logger.info("Requesting instructor records with criterion: {}", criterion);
-      postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion,
-          true, false, res -> {
-        if(res.failed()) {
-          promise.fail(res.cause());
-        } else {
-          List<Instructor> instructorList = new ArrayList<>();
-          for(Instructor instructor : res.result().getResults()) {
-            instructorList.add(instructor);
-          }
-          promise.complete(instructorList);
-        }
-      });
-    } catch(Exception e) {
-      promise.fail(e);
-    }
-    return promise.future();
+          String courseListingId, Map<String, String> okapiHeaders, Context context) {
+    PostgresClient postgresClient = getPgClient(okapiHeaders, context);
+    Criteria idCrit = new Criteria();
+    idCrit.addField("'courseListingId'");
+    idCrit.setOperation("=");
+    idCrit.setVal(courseListingId);
+    Criterion criterion = new Criterion(idCrit);
+    logger.info("Requesting instructor records with criterion: {}", criterion);
+    return postgresClient.get(INSTRUCTORS_TABLE, Instructor.class, criterion, true).map(res -> {
+      List<Instructor> instructorList = new ArrayList<>();
+      for (Instructor instructor : res.getResults()) {
+        instructorList.add(instructor);
+      }
+      return instructorList;
+    });
   }
 
   public static Future<Void> updateCourseListingInstructorCache(String courseListingId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Void> promise = Promise.promise();
-    lookupInstructorsForCourseListing(courseListingId,
-        okapiHeaders, context).onComplete(instructorRes -> {
-      if(instructorRes.failed()) {
-        promise.fail(instructorRes.cause());
-      } else {
-        getCourseListingById(courseListingId, okapiHeaders, context)
-            .onComplete(getRes -> {
-          if(getRes.failed()) {
-            promise.fail(getRes.cause());
-          } else {
-            try {
-              CourseListing courseListing = getRes.result();
-              List<Instructor> instructorList = instructorRes.result();
+    return lookupInstructorsForCourseListing(courseListingId, okapiHeaders, context)
+        .compose(instructorList -> getCourseListingById(courseListingId, okapiHeaders, context)
+            .compose(courseListing -> {
               logger.info("Found {} instructors for listing {}", instructorList.size(), courseListingId);
               courseListing.setInstructorObjects(instructorObjectListFromInstructorList(
                   instructorList));
               PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-              postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId,
-                  putReply -> {
-                if(putReply.failed()) {
-                  promise.fail(putReply.cause());
-                } else {
-                  promise.complete();
-                }
-              });
-            } catch(Exception e) {
-              promise.fail(e);
-            }
-          }
-        });
-      }
-    });
-    return promise.future();
+              return postgresClient.update(COURSE_LISTINGS_TABLE, courseListing, courseListingId)
+                  .mapEmpty();
+            })
+        );
   }
 
-  public static Future<Term> lookupTerm(String termId,
-      Map<String, String> okapiHeaders, Context context) {;
-    Promise<Term> promise = Promise.promise();
+  public static Future<Term> lookupTerm(String termId, Map<String, String> okapiHeaders, Context context) {
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(TERMS_TABLE, termId, Term.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete();
-      } else {
-        Term result = reply.result();
-        promise.complete(result);
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(TERMS_TABLE, termId, Term.class);
   }
 
     public static Future<Department> lookupDepartment(String departmentId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Department> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(DEPARTMENTS_TABLE, departmentId, Department.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        Department result = reply.result();
-        promise.complete(result);
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(DEPARTMENTS_TABLE, departmentId, Department.class);
   }
 
   public static Future<CourseType> lookupCourseType(String courseTypeId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CourseType> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COURSE_TYPES_TABLE, courseTypeId, CourseType.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COURSE_TYPES_TABLE, courseTypeId, CourseType.class);
   }
 
   public static Future<ProcessingStatus> lookupProcessingStatus(String processingStatusId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<ProcessingStatus> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(PROCESSING_STATUSES_TABLE, processingStatusId,
-        ProcessingStatus.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(PROCESSING_STATUSES_TABLE, processingStatusId,
+        ProcessingStatus.class);
   }
 
   public static Future<CopyrightStatus> lookupCopyrightStatus(String copyrightStatusId,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<CopyrightStatus> promise = Promise.promise();
     PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-    postgresClient.getById(COPYRIGHT_STATUSES_TABLE, copyrightStatusId,
-        CopyrightStatus.class,
-        reply -> {
-      if(reply.failed()) {
-        promise.fail(reply.cause());
-      } else if(reply.result() == null) {
-        promise.complete(null);
-      } else {
-        promise.complete(reply.result());
-      }
-    });
-    return promise.future();
+    return postgresClient.getById(COPYRIGHT_STATUSES_TABLE, copyrightStatusId,
+        CopyrightStatus.class);
   }
   public static Future<List<Course>> expandListOfCourses(List<Course> listOfCourses,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<List<Course>> promise = Promise.promise();
-    List<Future> expandedCourseFutureList = new ArrayList<>();
-    for(Course course : listOfCourses) {
+    List<Future<Course>> expandedCourseFutureList = new ArrayList<>();
+    for (Course course : listOfCourses) {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
-    CompositeFuture compositeFuture = CompositeFuture.all(expandedCourseFutureList);
-    compositeFuture.onComplete(expandCoursesRes -> {
-      if(expandCoursesRes.failed()) {
-        promise.fail(expandCoursesRes.cause());
-      } else {
-        List<Course> newListOfCourses = new ArrayList<>();
-        for( Future fut : expandedCourseFutureList ) {
-          Future<Course> f = (Future<Course>)fut;
-          newListOfCourses.add(f.result());
-        }
-        promise.complete(newListOfCourses);
-      }
-    });
-    return promise.future();
+    return GenericCompositeFuture
+        .all(expandedCourseFutureList)
+        .map(CompositeFuture::list);
   }
 
   public static Future<Course> getExpandedCourse(Course course,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Course> promise = Promise.promise();
     Future<CourseListing> courseListingFuture;
-    Course newCourse;
-    try {
-      PostgresClient postgresClient = getPgClient(okapiHeaders, context);
-      newCourse = copyCourse(course);
-      if(course.getCourseListingId() == null) {
-        courseListingFuture = Future.succeededFuture();
-      } else {
-        courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
-            okapiHeaders, context, Boolean.TRUE);
+    if (course.getCourseListingId() == null) {
+      courseListingFuture = Future.succeededFuture();
+    } else {
+      courseListingFuture = lookupExpandedCourseListing(course.getCourseListingId(),
+          okapiHeaders, context);
+    }
+    return courseListingFuture.compose(courseListing -> {
+      CourseListingObject expandedCourseListing = new CourseListingObject();
+      if (courseListing != null) {
+        copyFields(expandedCourseListing, courseListing);
       }
-      courseListingFuture.onComplete(courselistingReply -> {
-        if(courselistingReply.failed()) {
-          promise.fail(courselistingReply.cause());
-        } else {
-          try {
-          CourseListingObject expandedCourseListing = new CourseListingObject();
-          CourseListing courseListing = courselistingReply.result();
-          if(courseListing != null) {
-            copyFields(expandedCourseListing, courseListing);
-          }
-          newCourse.setCourseListingObject(expandedCourseListing);
+      Course newCourse = copyCourse(course);
+      newCourse.setCourseListingObject(expandedCourseListing);
 
-          Future<Department> departmentFuture;
-          if(course.getDepartmentId() == null) {
-            departmentFuture = Future.succeededFuture();
-          } else {
-            departmentFuture = lookupDepartment(course.getDepartmentId(), okapiHeaders,
-                context);
-          }
-          departmentFuture.onComplete(departmentReply -> {
-            if(departmentReply.failed()) {
-              promise.fail(departmentReply.cause());
-            } else {
-              Department department = departmentReply.result();
-              try {
-                if(department != null) {
-                  DepartmentObject departmentObject = new DepartmentObject();
-                  copyFields(departmentObject, department);
-                  newCourse.setDepartmentObject(departmentObject);
-                }
-              promise.complete(newCourse);
-              } catch(Exception e) {
-                promise.fail(e);
-              }
-            }
-          });
-          } catch(Exception e) {
-            promise.fail(e);
-          }
+      Future<Department> departmentFuture;
+      if (course.getDepartmentId() == null) {
+        departmentFuture = Future.succeededFuture();
+      } else {
+        departmentFuture = lookupDepartment(course.getDepartmentId(), okapiHeaders,
+            context);
+      }
+      return departmentFuture.map(department -> {
+        if (department != null) {
+          DepartmentObject departmentObject = new DepartmentObject();
+          copyFields(departmentObject, department);
+          newCourse.setDepartmentObject(departmentObject);
         }
+        return newCourse;
       });
-    }
-      catch(Exception e) {
-        promise.fail(e);
-    }
-    return promise.future();
+    });
   }
 
   public static Future<Void> putItemUpdate(JsonObject itemJson,
       Map<String, String> okapiHeaders, Context context) {
-    Promise<Void> promise = Promise.promise();
-    try {
-       String id = itemJson.getString("id");
-       String putPath = ITEMS_ENDPOINT + "/" + id;
-       logger.info("Making PUT request to Okapi inventory storage with itemJson {}",
-           itemJson::encode);
-       makeOkapiRequest(context.owner(), okapiHeaders, putPath, HttpMethod.PUT,
-           textAcceptHeaders, itemJson.encode(), 204).onComplete(res -> {
-         if (res.failed()) {
-           logger.error("Put failed: {}", res.cause().getMessage());
-           promise.fail(res.cause());
-         } else {
-           promise.complete();
-         }
-       });
-    } catch(Exception e) {
-      promise.fail(e);
-    }
-    return promise.future();
+    String id = itemJson.getString("id");
+    String putPath = ITEMS_ENDPOINT + "/" + id;
+    logger.info("Making PUT request to Okapi inventory storage with itemJson {}",
+        itemJson::encode);
+    return makeOkapiRequest(context.owner(), okapiHeaders, putPath, HttpMethod.PUT,
+        textAcceptHeaders, itemJson.encode(), 204).mapEmpty();
   }
 
   private static Course copyCourse(Course originalCourse) {
@@ -1091,7 +749,7 @@ public class CRUtil {
   }
 
   private static LocationObject locationObjectFromJson(JsonObject json) {
-    if(json == null) {
+    if (json == null) {
       return null;
     }
     LocationObject locationObject = new LocationObject();
@@ -1128,7 +786,7 @@ public class CRUtil {
   }
 
   private static ServicepointObject servicepointObjectFromJson(JsonObject json) {
-    if(json == null) {
+    if (json == null) {
       return null;
     }
     ServicepointObject servicepointObject = new ServicepointObject();
@@ -1149,14 +807,14 @@ public class CRUtil {
     try {
       List<StaffSlip> staffSlipList = new ArrayList<>();
       JsonArray staffSlips = json.getJsonArray("staffSlips");
-      for(int i = 0; i < staffSlips.size();i++) {
+      for (int i = 0; i < staffSlips.size();i++) {
         JsonObject slip = staffSlips.getJsonObject(i);
         StaffSlip staffSlip = new StaffSlip();
         staffSlip.setId(slip.getString("id"));
         staffSlip.setPrintByDefault(slip.getBoolean("printByDefault"));
         staffSlipList.add(staffSlip);
       }
-      if(!staffSlipList.isEmpty()) {
+      if (!staffSlipList.isEmpty()) {
         servicepointObject.setStaffSlips(staffSlipList);
       }
     } catch (Exception e) {
@@ -1165,7 +823,7 @@ public class CRUtil {
 
     try {
       JsonObject hsepJson = json.getJsonObject("holdShelfExpiryPeriod");
-      if(hsepJson != null) {
+      if (hsepJson != null) {
         HoldShelfExpiryPeriod hsep = new HoldShelfExpiryPeriod();
         hsep.setDuration(hsepJson.getInteger("duration"));
         String intervalIdString = hsepJson.getString("intervalId");
@@ -1191,7 +849,7 @@ public class CRUtil {
   public static List<InstructorObject> instructorObjectListFromInstructorList(
       List<Instructor> instructorList) {
     List<InstructorObject> instructorObjectList = new ArrayList<>();
-    for(Instructor instructor : instructorList) {
+    for (Instructor instructor : instructorList) {
       InstructorObject instructorObject = new InstructorObject();
       copyFields(instructorObject, instructor);
       instructorObjectList.add(instructorObject);
@@ -1200,14 +858,14 @@ public class CRUtil {
   }
 
   public static String makeCallNumber(String prefix, String number, String suffix) {
-    if(number == null || number.isEmpty()) {
+    if (number == null || number.isEmpty()) {
       return null;
     }
-    if(prefix == null) {
+    if (prefix == null) {
       prefix = "";
     }
 
-    if(suffix == null) {
+    if (suffix == null) {
       suffix = "";
     }
     return prefix + number + suffix;
@@ -1217,11 +875,11 @@ public class CRUtil {
   public static String UTCFromLocalDate(String localDate) {
     Pattern pattern = Pattern.compile("^\\d\\d\\d\\d-\\d\\d-\\d\\d$");
     Matcher matcher = pattern.matcher(localDate);
-    if(matcher.matches()) {
+    if (matcher.matches()) {
       return localDate + "T00:00:00Z";
     } else {
       return localDate;
-    }    
+    }
   }
 }
 
