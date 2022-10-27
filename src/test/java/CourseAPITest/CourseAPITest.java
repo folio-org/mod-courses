@@ -628,7 +628,7 @@ public class CourseAPITest {
         .put("endDate", "2020-02-10T12:30:00Z")
         .put("temporaryLoanTypeId", OkapiMock.loanType1Id)
         .put("processingStatusId", PROCESSING_STATUS_1_ID)
-        .put("copyrightTracking", new JsonObject()        
+        .put("copyrightTracking", new JsonObject()
           .put("copyrightStatusId", COPYRIGHT_STATUS_1_ID)
         );
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
@@ -821,6 +821,13 @@ public class CourseAPITest {
   public void getReservesFromCourseListingsWithBadQuery(TestContext context) {
     TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
         "/reserves?query=NOT+blooh", GET, standardHeaders, null, 500,
+        "Post Course Reserve").onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void getReservesFromCourseListingWithSortBy(TestContext context) {
+    TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + COURSE_LISTING_1_ID +
+            "/reserves?query=cql.allRecords%3Dtrue+sortby+copiedItem.title", GET, standardHeaders, null, 200,
         "Post Course Reserve").onComplete(context.asyncAssertSuccess());
   }
 
