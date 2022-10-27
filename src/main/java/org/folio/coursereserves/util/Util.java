@@ -21,7 +21,9 @@ public class Util {
     if (userQuery == null || userQuery.isEmpty()) {
       return courseQueryClause;
     } else {
-      return courseQueryClause + " AND (" + userQuery + ")";
+      // will be incorrect if userQuery has OR in it, but we can't have () around userQuery as that
+      // makes an invalid query with sortby
+      return courseQueryClause + " AND " + userQuery;
     }
   }
 }
