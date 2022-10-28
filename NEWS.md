@@ -1,3 +1,8 @@
+## 1.4.6 2022-10-28
+* Add personal disclosure statement ([MODCR-88](https://issues.folio.org/browse/MODCR-88))
+* Update to RMB 35, Vert.x 4.3.4 ([MODCR-100](https://issues.folio.org/browse/MODCR-100))
+* Refactor code to use Future rather than Promise ([MODCR-94](https://issues.folio.org/browse/MODCR-94))
+
 ## 1.4.5 2022-09-07
 * Fix socket leak ([MODCR-95](https://issues.folio.org/browse/MODCR-95))
 
