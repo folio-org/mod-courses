@@ -217,8 +217,11 @@ public class CRUtil {
     if (permanentLocationId == null) {
       permanentLocationId = holdingsJson.getString("permanentLocationId");
     }
+    logger.info("Setting copied item permanentLocationId to " + permanentLocationId);
     copiedItem.setPermanentLocationId(permanentLocationId);
-    copiedItem.setTemporaryLocationId(itemJson.getString("temporaryLocationId"));
+    String temporaryLocationId = itemJson.getString("temporaryLocationId");
+    logger.info("Setting copied item temporaryLocationId to " + temporaryLocationId);
+    copiedItem.setTemporaryLocationId(temporaryLocationId);
     String callNumber = makeCallNumber(itemJson.getString("itemLevelCallNumberPrefix"),
         itemJson.getString("itemLevelCallNumber"), itemJson.getString("itemLevelCallNumberSuffix"));
     if (callNumber == null) {
