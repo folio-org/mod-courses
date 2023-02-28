@@ -1,3 +1,7 @@
+## 1.4.7 2023-02-24
+* Update to permit use of new inventory-storage interface ([MODCR-103](https://issues.folio.org/projects/MODCR/issues/MODCR-103))
+* Update reference data 
+
 ## 1.4.6 2022-10-28
 * Add personal disclosure statement ([MODCR-88](https://issues.folio.org/browse/MODCR-88))
 * Update to RMB 35, Vert.x 4.3.4 ([MODCR-100](https://issues.folio.org/browse/MODCR-100))

@@ -883,6 +883,12 @@ public class CourseAPITest {
                 copiedItemJson.getString("temporaryLocationId"));
             return;
           }
+          if(copiedItemJson.getString("permanentLocationId") == null
+             || !copiedItemJson.getString("permanentLocationId").equals(OkapiMock.location1Id)) {
+            context.fail("Expected permamentLocationId" + OkapiMock.location1Id + " got " +
+                copiedItemJson.getString("permanentLocationId"));
+            return;
+          }
           if(copiedItemJson.getString("copy") == null || ! copiedItemJson.getString("copy").equals(OkapiMock.copy1)) {
             context.fail("Expected copy " + OkapiMock.copy1 + " got " +
                 copiedItemJson.getString("copy"));
@@ -904,6 +910,7 @@ public class CourseAPITest {
                 JsonObject getReserveJson = getRes.result().getJson();
                 JsonObject getItemJson = getReserveJson.getJsonObject("copiedItem");
                 JsonObject permanentLocationJson = getItemJson.getJsonObject("permanentLocationObject");
+                String temporaryLocationId = getItemJson.getString("temporaryLocationId");
                 JsonObject temporaryLocationJson = getItemJson.getJsonObject("temporaryLocationObject");
                 JsonObject temporaryLoanTypeJson = getReserveJson.getJsonObject("temporaryLoanTypeObject");
                 JsonObject copyrightTrackingJson = getReserveJson.getJsonObject("copyrightTracking");
@@ -916,8 +923,14 @@ public class CourseAPITest {
                   context.fail("Expected permanentLocationObject with id " + OkapiMock.location1Id);
                   return;
                 }
+                if(temporaryLocationId == null || !temporaryLocationId.equals(OkapiMock.location2Id)) {
+                  context.fail("Expected temporaryLocationId to be '" + OkapiMock.location2Id + 
+                    "' got value of '" + temporaryLocationId + "'");
+                }
+
                 if(!temporaryLocationJson.getString("id").equals(OkapiMock.location2Id)) {
-                  context.fail("Expected temporaryLocationObject with id " + OkapiMock.location2Id);
+                  context.fail("Expected temporaryLocationObject with id '" + OkapiMock.location2Id +
+                    "'' got value of '" + temporaryLocationJson.getString("id") + "'");
                   return;
                 }
                 if(temporaryLoanTypeJson == null) {
