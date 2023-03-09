@@ -1201,9 +1201,9 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
             } else {
               itemId = null;
             }
-            if(writeType == WriteType.POST &&
-              originalTemporaryLocationId.get() == null && courseListingLocation != null &&
-              ( retrievedItemJson == null || retrievedItemJson.getString("temporaryLocationId") == null)) {
+
+            //If courseListingLocation is populated, use it as the temporary location
+            if(writeType == WriteType.POST && courseListingLocation != null ) {
               logger.info("Using courseListing location '{}' for reserve temporary location", courseListingLocation);
               originalTemporaryLocationId.set(courseListingLocation);
             }
