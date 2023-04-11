@@ -1,0 +1,10 @@
+{
+    "id" : "12c217bb-8340-4e87-9418-4854783544e1",
+    "name" : "Chinese 101",
+    "description" : "First semester of Chinese language study",
+    "departmentId" : "37f80525-dd56-4505-895a-0f76133b69c6",
+    "courseListingId" : "f5d55122-85c3-44c2-b375-e31ac168617c",
+    "courseNumber" : "CHINESE101.F01",
+    "sectionName" : "01",
+    "numberOfStudents" : 10
+  }
