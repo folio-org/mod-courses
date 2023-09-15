@@ -4,7 +4,7 @@
   <groupId>org.folio</groupId>
   <artifactId>mod-courses</artifactId>
   <version>1.4.8-SNAPSHOT</version>
- 
+
   <packaging>jar</packaging>
 
   <licenses>
@@ -60,7 +60,7 @@
     <developerConnection>scm:git:git@github.com:folio-org/mod-courses.git</developerConnection>
     <tag>v1.1.0</tag>
   </scm>
-  
+
    <dependencyManagement>
     <dependencies>
       <dependency>
@@ -72,7 +72,7 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-  
+
   <dependencies>
 
     <dependency>
@@ -98,7 +98,7 @@
       <artifactId>rest-assured</artifactId>
       <version>5.2.0</version>
       <scope>test</scope>
-    </dependency>   
+    </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-unit</artifactId>
@@ -141,11 +141,11 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <release>11</release>
+          <release>17</release>
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
-      
+
       <plugin>
         <groupId>org.folio</groupId>
         <artifactId>domain-models-maven-plugin</artifactId>
@@ -231,7 +231,7 @@
           </dependency>
         </dependencies>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
@@ -273,7 +273,7 @@
         </executions>
       </plugin>
 
-      
+
       <plugin>
         <groupId>com.coderplus.maven.plugins</groupId>
         <artifactId>copy-rename-maven-plugin</artifactId>
@@ -300,7 +300,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -337,7 +337,7 @@
           </execution>
         </executions>
       </plugin>
-      
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
