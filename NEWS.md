@@ -1,3 +1,8 @@
+## 1.4.8 2023-10-13
+* Update Java version to 17 ([MODCR-111](https://issues.folio.org/browse/MODCR-111))
+* Add new sample data ([MODCR-109](https://issues.folio.org/browse/MODCR-109))
+* Set item temporary location when reserved ([MODCR-107](https://issues.folio.org/browse/MODCR-107))
+
 ## 1.4.7 2023-02-24
 * Update to permit use of new inventory-storage interface ([MODCR-103](https://issues.folio.org/projects/MODCR/issues/MODCR-103))
 * Update reference data 
