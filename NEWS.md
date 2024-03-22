@@ -1,3 +1,9 @@
+## 1.4.10 2024-03-22
+* Correct issue with logging import
+
+## 1.4.9 2024-03-21
+* Update RMB to version 35.2.0 ([MODCR-116](https://folio-org.atlassian.net/browse/MODCR-116))
+
 ## 1.4.8 2023-10-13
 * Update Java version to 17 ([MODCR-111](https://issues.folio.org/browse/MODCR-111))
 * Add new sample data ([MODCR-109](https://issues.folio.org/browse/MODCR-109))
