@@ -22,7 +22,6 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -924,7 +923,7 @@ public class CourseAPITest {
                   return;
                 }
                 if(temporaryLocationId == null || !temporaryLocationId.equals(OkapiMock.location2Id)) {
-                  context.fail("Expected temporaryLocationId to be '" + OkapiMock.location2Id + 
+                  context.fail("Expected temporaryLocationId to be '" + OkapiMock.location2Id +
                     "' got value of '" + temporaryLocationId + "'");
                 }
 
@@ -2085,6 +2084,25 @@ public class CourseAPITest {
      .compose(x -> deleteCourseListings())
      .onComplete(context.asyncAssertSuccess());  // success after deleting all foreign keys
    }
+
+   @Test
+   public void testDeleteCourselistingById(TestContext context) {
+    deleteCourseListingById(COURSE_LISTING_1_ID)
+        .onComplete(context.asyncAssertFailure())
+        .recover(x -> deleteCourses())
+        .compose(x -> deleteCourseListingById(COURSE_LISTING_1_ID))
+        .onComplete(context.asyncAssertSuccess());
+   }
+
+  @Test
+  public void testDeleteCourselistingByIdNoInstructors(TestContext context) {
+    deleteCourseListing1Instructors()
+        .compose(x -> deleteCourseListingById(COURSE_LISTING_1_ID))
+        .onComplete(context.asyncAssertFailure())
+        .recover(x -> deleteCourses())
+        .compose(x -> deleteCourseListingById(COURSE_LISTING_1_ID))
+        .onComplete(context.asyncAssertSuccess());
+  }
 
    @Test
    public void testDeleteReserveById(TestContext context) {
@@ -3825,6 +3843,11 @@ public class CourseAPITest {
   private Future<Void> deleteCourseListings() {
     return TestUtil.doRequest(vertx, baseUrl + "/courselistings", DELETE, null, null, 204,
         "Delete All Course Listings").mapEmpty();
+  }
+
+  private Future<Void> deleteCourseListingById(String id) {
+    return TestUtil.doRequest(vertx, baseUrl + "/courselistings/" + id, DELETE, acceptTextHeaders, null, 204,
+        "Delete a single Course Listing").mapEmpty();
   }
 
   private Future<Void> deleteTerms() {
