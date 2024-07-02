@@ -12,12 +12,15 @@ import java.util.List;
 import java.util.Map;
 import javax.ws.rs.core.Response;
 
+import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.coursereserves.util.CRUtil;
 import org.folio.coursereserves.util.WrapString;
 import org.folio.cql2pgjson.CQL2PgJSON;
 import org.folio.cql2pgjson.exception.FieldException;
+import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.CopyrightStatus;
 import org.folio.rest.jaxrs.model.CopyrightStatuses;
@@ -207,8 +210,19 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
   @Override
   public void deleteCoursereservesCourselistingsByListingId(String listingId, String lang,
       Map<String, String> okapiHeaders, Handler<AsyncResult<Response>> asyncResultHandler, Context vertxContext) {
-    PgUtil.deleteById(COURSE_LISTINGS_TABLE, listingId, okapiHeaders, vertxContext,
-        DeleteCoursereservesCourselistingsByListingIdResponse.class, asyncResultHandler);
+    CRUtil.lookupInstructorsForCourseListing(listingId, okapiHeaders, vertxContext).compose( instructorList -> {
+      List<Future<RowSet<Row>>> deleteInstructorFutureList = new ArrayList<>();
+      PostgresClient postgresClient = getPGClientFromHeaders(vertxContext, okapiHeaders);
+      for (Instructor instructor : instructorList) {
+        logger.debug("Delete instructor with ID " + instructor.getId());
+        deleteInstructorFutureList.add(postgresClient.delete(INSTRUCTORS_TABLE, instructor.getId()));
+      }
+      return GenericCompositeFuture
+          .all(deleteInstructorFutureList);
+    }).onComplete( x -> {
+      PgUtil.deleteById(COURSE_LISTINGS_TABLE, listingId, okapiHeaders, vertxContext,
+          DeleteCoursereservesCourselistingsByListingIdResponse.class, asyncResultHandler);
+    });
   }
 
   @Override
