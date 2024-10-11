@@ -1,6 +1,5 @@
 ## 1.4.11
-* Upgrade `holdings-storage` to 8.0 ([]())
-
+* Upgrade `holdings-storage` to 8.0 ([MODCR-128](https://folio-org.atlassian.net/browse/MODCR-128))
 
 ## 1.4.10 2024-03-22
 * Correct issue with logging import
