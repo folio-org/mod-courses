@@ -1,3 +1,6 @@
+## 1.4.11
+* Upgrade `holdings-storage` to 8.0 ([MODCR-128](https://folio-org.atlassian.net/browse/MODCR-128))
+
 ## 1.4.10 2024-03-22
 * Correct issue with logging import
 
@@ -11,7 +14,7 @@
 
 ## 1.4.7 2023-02-24
 * Update to permit use of new inventory-storage interface ([MODCR-103](https://issues.folio.org/projects/MODCR/issues/MODCR-103))
-* Update reference data 
+* Update reference data
 
 ## 1.4.6 2022-10-28
 * Add personal disclosure statement ([MODCR-88](https://issues.folio.org/browse/MODCR-88))
