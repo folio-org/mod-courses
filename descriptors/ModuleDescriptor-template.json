@@ -453,6 +453,10 @@
         {
             "id" : "loan-types",
             "version": "2.0"
+        },
+        {
+           "id" : "users",
+           "version" : "16.0"
         }
     ],
     "permissionSets": [
