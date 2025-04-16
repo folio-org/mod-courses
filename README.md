@@ -1,6 +1,6 @@
 # mod-courses
 
-Copyright (C) 2019-2023 The Open Library Foundation
+Copyright (C) 2019-2025 The Open Library Foundation
 
 This software is distributed under the terms of the Apache License,
 Version 2.0. See the file "[LICENSE](LICENSE)" for more information.
@@ -13,8 +13,8 @@ See [overview](ramls/overview.md) for more information.
 
 ## Prerequisites
 
-* Java 11 JDK
-* Maven 3.3.9
+* Java 21 JDK
+* Maven 3.8
 
 ## Additional information
 
