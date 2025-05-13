@@ -1,4 +1,9 @@
-## 1.4.11
+## 1.4.12 2025-04-23
+* Update Java from 17 to 21 ([MODCR-134](https://folio-org.atlassian.net/browse/MODCR-134))
+* Update all dependencies for Sunflower (R1-2025) ([MODCR-136](https://folio-org.atlassian.net/browse/MODCR-136))
+* Add "apk upgrade" to Dockerfile fixing vulns ([MODCR-137](https://folio-org.atlassian.net/browse/MODCR-137))
+
+## 1.4.11 2024-11-02
 * Upgrade `holdings-storage` to 8.0 ([MODCR-128](https://folio-org.atlassian.net/browse/MODCR-128))
 * Add module descriptor validation (([MODCR-122](https://folio-org.atlassian.net/browse/MODCR-122))
 * Support referential integrity for instructors ([[MODCR-121](https://folio-org.atlassian.net/browse/MODCR-121))
