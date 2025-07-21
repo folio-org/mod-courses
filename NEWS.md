@@ -1,3 +1,6 @@
+## 1.5.0 In Progress
+* Add support for 11.0 item-storage interface ([MODCR-139](https://folio-org.atlassian.net/browse/MODCR-139))
+
 ## 1.4.12 2025-04-23
 * Update Java from 17 to 21 ([MODCR-134](https://folio-org.atlassian.net/browse/MODCR-134))
 * Update all dependencies for Sunflower (R1-2025) ([MODCR-136](https://folio-org.atlassian.net/browse/MODCR-136))
