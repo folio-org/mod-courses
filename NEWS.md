@@ -1,3 +1,6 @@
+## 1.5.0
+* Initial release of 1.5.x branch
+
 ## 1.4.11
 * Upgrade `holdings-storage` to 8.0 ([MODCR-128](https://folio-org.atlassian.net/browse/MODCR-128))
 * Add module descriptor validation (([MODCR-122](https://folio-org.atlassian.net/browse/MODCR-122))
