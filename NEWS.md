@@ -1,3 +1,6 @@
+## 1.5.1
+* Update RMB to 34.4.1, Vertx to 4.5.22
+
 ## 1.5.0
 * Initial release of 1.5.x branch
 
