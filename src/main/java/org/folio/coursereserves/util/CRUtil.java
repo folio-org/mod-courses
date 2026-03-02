@@ -865,13 +865,13 @@ public class CRUtil {
     }
 
     List<String> componentList = new ArrayList<>();
-    if (prefix == null) {
+    if (prefix != null) {
       componentList.add(prefix);
     }
 
     componentList.add(number);
 
-    if (suffix == null) {
+    if (suffix != null) {
       componentList.add(suffix);
     }
 
