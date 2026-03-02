@@ -20,7 +20,6 @@ import org.folio.coursereserves.util.CRUtil;
 import org.folio.coursereserves.util.WrapString;
 import org.folio.cql2pgjson.CQL2PgJSON;
 import org.folio.cql2pgjson.exception.FieldException;
-import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.rest.RestVerticle;
 import org.folio.rest.jaxrs.model.CopyrightStatus;
 import org.folio.rest.jaxrs.model.CopyrightStatuses;
@@ -217,7 +216,7 @@ public class CourseAPI implements org.folio.rest.jaxrs.resource.Coursereserves {
         logger.debug("Delete instructor with ID " + instructor.getId());
         deleteInstructorFutureList.add(postgresClient.delete(INSTRUCTORS_TABLE, instructor.getId()));
       }
-      return GenericCompositeFuture
+      return Future
           .all(deleteInstructorFutureList);
     }).onComplete( x -> {
       PgUtil.deleteById(COURSE_LISTINGS_TABLE, listingId, okapiHeaders, vertxContext,

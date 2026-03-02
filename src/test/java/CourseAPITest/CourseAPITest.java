@@ -95,8 +95,8 @@ public class CourseAPITest {
   public static Map<String, String> okapiHeaders = new CaseInsensitiveMap<>();
   public static MultiMap standardHeaders = MultiMap.caseInsensitiveMultiMap();
   public static MultiMap acceptTextHeaders = MultiMap.caseInsensitiveMultiMap();
-  public static String MODULE_TO = "1.0.1";
-  public static String MODULE_FROM = "1.0.0";
+  public static String MODULE_TO = "courses-1.0.1";
+  public static String MODULE_FROM = "courses-1.0.0";
   private static String restVerticleId;
   private static String okapiVerticleId;
 
