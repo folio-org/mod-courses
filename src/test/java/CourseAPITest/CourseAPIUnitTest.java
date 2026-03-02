@@ -3,6 +3,7 @@ package CourseAPITest;
 
 import java.util.UUID;
 
+import org.folio.coursereserves.util.CRUtil;
 import org.folio.rest.impl.CourseAPI;
 import org.folio.rest.jaxrs.model.CopyrightStatusObject;
 import org.folio.rest.jaxrs.model.CopyrightTracking;
@@ -11,6 +12,7 @@ import org.folio.rest.jaxrs.model.LocationObject;
 import org.folio.rest.jaxrs.model.Reserve;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
@@ -36,6 +38,4 @@ public class CourseAPIUnitTest {
     CourseAPI.scrubDerivedFields(reserve);
     assertNull(reserve.getCopyrightTracking().getCopyrightStatusObject());
   }
-
-
 }

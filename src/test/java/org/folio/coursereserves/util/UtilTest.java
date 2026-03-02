@@ -99,9 +99,22 @@ public class UtilTest {
 
   @Test public void testMakeCallNumber() {
     String callNumberGood = CRUtil.makeCallNumber("F", "99.99", "COW");
-    assertEquals("F99.99COW", callNumberGood);
+    assertEquals("F 99.99 COW", callNumberGood);
     String callNumberBad = CRUtil.makeCallNumber("G", null, "PIG");
     assertNull(callNumberBad);
+
+    String callNumber = CRUtil.makeCallNumber("TEST", "MCN FICTION", null);
+    assertEquals("TEST MCN FICTION", callNumber);
+
+    String callNumber2 = CRUtil.makeCallNumber(null, "MCN FICTION", null);
+    assertEquals("MCN FICTION", callNumber2);
+
+    String callNumber3 = CRUtil.makeCallNumber(null, "MCN FICTION", "GRONK");
+    assertEquals("MCN FICTION GRONK", callNumber3);
+
+    String callNumber4 = CRUtil.makeCallNumber("TEST", "MCN FICTION", "GRONK");
+    assertEquals("TEST MCN FICTION GROKN", callNumber4);
+
   }
 
 

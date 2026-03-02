@@ -863,14 +863,19 @@ public class CRUtil {
     if (number == null || number.isEmpty()) {
       return null;
     }
+
+    List<String> componentList = new ArrayList<>();
     if (prefix == null) {
-      prefix = "";
+      componentList.add(prefix);
     }
 
+    componentList.add(number);
+
     if (suffix == null) {
-      suffix = "";
+      componentList.add(suffix);
     }
-    return prefix + number + suffix;
+
+    return String.join(" ", componentList);
   }
 
   /* If the date string is just a 'local' date then convert it to UTC */
