@@ -390,7 +390,7 @@ public class OkapiMock extends AbstractVerticle {
    private void handleWipe(RoutingContext context) {
      logger.info("Got wipe request");
      if(context.request().method() == HttpMethod.POST) {
-       String postContent = context.getBodyAsString();
+       String postContent = context.body().asString();
        JsonObject json = new JsonObject(postContent);
        try {
         if (json.containsKey("wipe")) {
@@ -415,7 +415,7 @@ public class OkapiMock extends AbstractVerticle {
    private void handleReset(RoutingContext context) {
      logger.info("Got reset request");
      if(context.request().method() == HttpMethod.POST) {
-       String postContent = context.getBodyAsString();
+       String postContent = context.body().asString();
        JsonObject json = new JsonObject(postContent);
        try {
         if (json.containsKey("reset")) {
@@ -441,7 +441,7 @@ public class OkapiMock extends AbstractVerticle {
    private void handleAddSample(RoutingContext context) {
      logger.info("Adding sample data in mock okapi");
      if(context.request().method() == HttpMethod.POST) {
-       String postContent = context.getBodyAsString();
+       String postContent = context.body().asString();
        JsonObject json = new JsonObject(postContent);
        try {
         if(json != null && json.containsKey("add")) {

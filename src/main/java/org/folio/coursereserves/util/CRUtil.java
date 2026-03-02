@@ -33,7 +33,6 @@ import static org.folio.rest.impl.CourseAPI.PROCESSING_STATUSES_TABLE;
 import static org.folio.rest.impl.CourseAPI.RESERVES_TABLE;
 import static org.folio.rest.impl.CourseAPI.TERMS_TABLE;
 
-import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.WebClientFactory;
 import org.folio.rest.jaxrs.model.Contributor;
 import org.folio.rest.jaxrs.model.CopiedItem;
@@ -159,7 +158,7 @@ public class CRUtil {
     for (Reserve reserve : listOfReserves) {
       expandedReserveFutureList.add(lookupExpandedReserve(reserve.getId(), okapiHeaders, context));
     }
-    return GenericCompositeFuture
+    return Future
         .all(expandedReserveFutureList)
         .map(CompositeFuture::list);
   }
@@ -435,7 +434,7 @@ public class CRUtil {
       Future<JsonObject> tempLocationFuture, Future<JsonObject> permLocationFuture,
       Future<ProcessingStatus> processingStatusFuture,
       Future<CopyrightStatus> copyrightStatusFuture, Future<JsonObject> loanTypeFuture) {
-    return CompositeFuture
+    return Future
         .join(tempLocationFuture, permLocationFuture, processingStatusFuture, copyrightStatusFuture, loanTypeFuture)
         .recover(x -> Future.succeededFuture())
         .map(x -> {
@@ -482,7 +481,7 @@ public class CRUtil {
       if (courselisting == null) {
         return Future.succeededFuture(null);
       }
-      List<Future> futureList = new ArrayList<>();
+      List<Future<?>> futureList = new ArrayList<>();
       String termId = courselisting.getTermId();
       if (termId != null) {
         futureList.add(lookupTerm(termId, okapiHeaders, context)
@@ -507,7 +506,7 @@ public class CRUtil {
             .map(CRUtil::servicepointObjectFromJson)
             .onSuccess(courselisting::setServicepointObject));
       }
-      return CompositeFuture.join(futureList)
+      return Future.join(futureList)
           .recover(x -> Future.succeededFuture())
           .map(x -> courselisting);
     });
@@ -678,7 +677,7 @@ public class CRUtil {
     for (Course course : listOfCourses) {
       expandedCourseFutureList.add(getExpandedCourse(course, okapiHeaders, context));
     }
-    return GenericCompositeFuture
+    return Future
         .all(expandedCourseFutureList)
         .map(CompositeFuture::list);
   }

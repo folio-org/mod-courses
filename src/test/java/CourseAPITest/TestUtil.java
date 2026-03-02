@@ -7,12 +7,12 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpResponseExpectation;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -182,8 +182,9 @@ public class TestUtil {
     return client
         .getAbs(url).addQueryParam("wait", "10000")
         .putHeader("X-Okapi-Tenant", tenantId)
-        .expect(ResponsePredicate.SC_OK)
-        .send().mapEmpty();
+        .send()
+        .expecting(HttpResponseExpectation.SC_OK)
+        .mapEmpty();
   }
 
   public static Future<Void> initTenant(WebClient client, String tenantId, int port,
@@ -197,8 +198,8 @@ public class TestUtil {
         .putHeader("X-Okapi-Tenant", tenantId)
         .putHeader("X-Okapi-Url", okapiUrl)
         .putHeader("X-Okapi-Url-To", "http://localhost:" + port)
-        .expect(ResponsePredicate.SC_CREATED)
         .sendJsonObject(payload)
+        .expecting(HttpResponseExpectation.SC_CREATED)
         .compose(result ->
             initTenantWait(client, tenantId,
                 "http://localhost:" + port + result.getHeader("Location")));
