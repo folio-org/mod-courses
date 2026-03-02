@@ -113,7 +113,7 @@ public class UtilTest {
     assertEquals("MCN FICTION GRONK", callNumber3);
 
     String callNumber4 = CRUtil.makeCallNumber("TEST", "MCN FICTION", "GRONK");
-    assertEquals("TEST MCN FICTION GROKN", callNumber4);
+    assertEquals("TEST MCN FICTION GRONK", callNumber4);
 
   }
 
