@@ -1,4 +1,8 @@
-## 1.5.0 In Progress
+## 1.6.0 2026-04-17
+* Fix issue with prefix and call numbers ([MODCR-143](https://folio-org.atlassian.net/browse/MODCR-142))
+* Update to Vertx 5.x, RMB 36.x
+
+## 1.5.0 2026-01-05
 * Add support for 11.0 item-storage interface ([MODCR-139](https://folio-org.atlassian.net/browse/MODCR-139))
 
 ## 1.4.12 2025-04-23
