@@ -1,0 +1,208 @@
+{
+  "description": "mod-courses configuration template per ADR-0013. Resource, replica, and JVM defaults match the published Trillium (R1 2026) Bugfest baseline: https://folio-org.atlassian.net/wiki/spaces/REL/pages/1034125338 (reference workload: 3 standalone tenants and 11 consortia tenants). A complete Bugfest environment-variable and Kong-timeout baseline could not be found; those defaults come from the existing ModuleDescriptor, RMB 36.0.0 / Vert.x defaults, and the implementation guide. Empty sidecarDefaults arrays are included solely because both schema attachments on FOLIO-4575 require that block, despite the guide specifying only moduleDefaults for regular modules; no sidecar configuration is prescribed here.",
+  "moduleDefaults": {
+    "resources": [
+      {
+        "name": "cpu",
+        "value": "64",
+        "description": "Container CPU allocation in CPU units, matching the Bugfest table's default for other modules and sidecars."
+      },
+      {
+        "name": "memory",
+        "value": "1024",
+        "description": "Container memory hard limit in MiB, matching the published Bugfest sizing for mod-courses."
+      },
+      {
+        "name": "memoryReservation",
+        "value": "896",
+        "description": "Container memory reservation in MiB, matching the published Bugfest sizing for mod-courses."
+      }
+    ],
+    "java": [
+      {
+        "name": "xmx",
+        "value": "768m",
+        "description": "Maximum Java heap size, matching the published Bugfest sizing and the JAVA_OPTIONS entry."
+      },
+      {
+        "name": "MaxMetaspaceSize",
+        "value": "128m",
+        "description": "Maximum Java metaspace size, matching the published Bugfest sizing and the JAVA_OPTIONS entry."
+      }
+    ],
+    "deployment": {
+      "isHaSupported": true,
+      "replicasRecommendedCount": 2,
+      "description": "The module stores persistent state in PostgreSQL and supports multiple instances for high availability; two replicas match the published Bugfest baseline."
+    },
+    "kong": {
+      "timeouts": {
+        "connect": "60s",
+        "send": "60s",
+        "read": "120s"
+      },
+      "description": "Guide fallback timeouts, not verified Bugfest values; the 120-second read allowance accommodates list expansion involving synchronous requests to other modules."
+    },
+    "EnvVars": [
+      {
+        "name": "DB_HOST",
+        "value": null,
+        "description": "PostgreSQL writer hostname supplied by the deployment; the driver's localhost fallback is unsuitable as a deployment default.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_PORT",
+        "value": "5432",
+        "description": "PostgreSQL writer port, matching the existing ModuleDescriptor and the driver's default.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_USERNAME",
+        "value": null,
+        "description": "PostgreSQL administrative username supplied by the deployment for tenant schema management.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_PASSWORD",
+        "value": null,
+        "description": "PostgreSQL administrative password supplied through deployment secret management.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_DATABASE",
+        "value": null,
+        "description": "PostgreSQL database name supplied by the deployment for module tenant schemas.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_QUERYTIMEOUT",
+        "value": "60000",
+        "description": "Query timeout in milliseconds retained from the existing ModuleDescriptor, effective only when application code passes it to RMB query methods, which mod-courses does not currently do.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_CHARSET",
+        "value": "UTF-8",
+        "description": "Legacy database charset setting retained from the existing ModuleDescriptor and accepted by RMB's configuration mapper.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_MAXPOOLSIZE",
+        "value": "5",
+        "description": "Maximum connections per tenant per database pool in each module instance, retained from the existing ModuleDescriptor rather than RMB's default of 4.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_HOST_READER",
+        "value": null,
+        "description": "Optional synchronous PostgreSQL reader hostname used with DB_PORT_READER, otherwise reads use the writer pool.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_PORT_READER",
+        "value": null,
+        "description": "Optional synchronous PostgreSQL reader port used with DB_HOST_READER, otherwise reads use the writer pool.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_HOST_READER_ASYNC",
+        "value": null,
+        "description": "Optional asynchronous PostgreSQL reader hostname used with DB_PORT_READER_ASYNC by RMB's async-read client, which mod-courses does not currently use.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_PORT_READER_ASYNC",
+        "value": null,
+        "description": "Optional asynchronous PostgreSQL reader port used with DB_HOST_READER_ASYNC, otherwise RMB's async-read client falls back to the synchronous reader or writer pool.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_SERVER_PEM",
+        "value": null,
+        "description": "Optional PEM trust certificate or chain that enables PostgreSQL TLSv1.3 with server certificate and hostname verification, otherwise RMB uses an unencrypted connection.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_MAXSHAREDPOOLSIZE",
+        "value": null,
+        "description": "Optional shared connection-pool limit that overrides DB_MAXPOOLSIZE across tenants; leave unset because RMB 36.0.0 documents shared pooling as buggy (RMB-1030).",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_CONNECTIONRELEASEDELAY",
+        "value": "60000",
+        "description": "Idle connection timeout in milliseconds, matching RMB's default, with 0 keeping idle connections open indefinitely.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_MAX_LIFETIME",
+        "value": "1800000",
+        "description": "Maximum connection lifetime in milliseconds before closure when idle, matching RMB's 30-minute default, with 0 disabling the limit.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_RECONNECTATTEMPTS",
+        "value": "0",
+        "description": "Maximum retries after a database connection failure, matching the Vert.x default of no retries.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_RECONNECTINTERVAL",
+        "value": "1000",
+        "description": "Delay in milliseconds between database connection retries when DB_RECONNECTATTEMPTS enables them, matching the Vert.x default.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_EXPLAIN_QUERY_THRESHOLD",
+        "value": "1000",
+        "description": "Query duration threshold in milliseconds for RMB EXPLAIN ANALYZE logging on supported query methods, matching RMB's default.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_ALLOW_SUPPRESS_OPTIMISTIC_LOCKING",
+        "value": "0001-01-01T00:00:00Z",
+        "description": "Timestamp before which RMB permits optimistic-locking suppression for tables configured with failOnConflictUnlessSuppressed, with the default keeping suppression disabled.",
+        "type": "FUNCTIONAL",
+        "essential": false
+      },
+      {
+        "name": "JAVA_OPTIONS",
+        "value": "-Xmx768m -XX:MaxMetaspaceSize=128m",
+        "description": "JVM options passed by the container launcher, matching the published Bugfest heap and metaspace sizing documented in the java section.",
+        "type": "CONFIG",
+        "essential": false
+      },
+      {
+        "name": "LOG4J_CONFIGURATION_FILE",
+        "value": null,
+        "description": "Optional Log4j configuration file location overriding discovery of the bundled logging configuration.",
+        "type": "CONFIG",
+        "essential": false
+      }
+    ]
+  },
+  "sidecarDefaults": {
+    "resources": [],
+    "java": [],
+    "EnvVars": []
+  }
+}

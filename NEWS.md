@@ -1,4 +1,5 @@
 ## 1.5.0 In Progress
+* Add DeployConfig.json ([ADR-0013 Configuration Management](https://folio-org.atlassian.net/wiki/spaces/TC/pages/1999702996))
 * Add support for 11.0 item-storage interface ([MODCR-139](https://folio-org.atlassian.net/browse/MODCR-139))
 
 ## 1.4.12 2025-04-23
