@@ -32,3 +32,4 @@ hs_err_pid*
 .vertx
 *.iml
 
+dependency-reduced-pom.xml
