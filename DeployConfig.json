@@ -115,20 +115,6 @@
         "essential": false
       },
       {
-        "name": "DB_HOST_READER_ASYNC",
-        "value": null,
-        "description": "Optional asynchronous PostgreSQL reader hostname used with DB_PORT_READER_ASYNC by RMB's async-read client, which mod-courses does not currently use.",
-        "type": "DB",
-        "essential": false
-      },
-      {
-        "name": "DB_PORT_READER_ASYNC",
-        "value": null,
-        "description": "Optional asynchronous PostgreSQL reader port used with DB_HOST_READER_ASYNC, otherwise RMB's async-read client falls back to the synchronous reader or writer pool.",
-        "type": "DB",
-        "essential": false
-      },
-      {
         "name": "DB_SERVER_PEM",
         "value": null,
         "description": "Optional PEM trust certificate or chain that enables PostgreSQL TLSv1.3 with server certificate and hostname verification, otherwise RMB uses an unencrypted connection.",
