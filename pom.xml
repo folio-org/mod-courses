@@ -21,6 +21,7 @@
     <ramlfiles_path>${basedir}/ramls</ramlfiles_path>
     <vertx-version>5.2.3</vertx-version>
     <folio-module-descriptor-validator.version>1.0.1</folio-module-descriptor-validator.version>
+    <aspectj-version>1.9.25</aspectj-version>
   </properties>
 
   <repositories>
@@ -149,7 +150,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.14.0</version>
         <configuration>
-          <release>21</release>
+          <release>25</release>
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
@@ -205,11 +206,11 @@
       <plugin>
         <groupId>dev.aspectj</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
-        <version>1.14</version>
+        <version>1.14.1</version>
         <configuration>
           <verbose>true</verbose>
           <showWeaveInfo>false</showWeaveInfo>
-          <complianceLevel>21</complianceLevel>
+          <complianceLevel>25</complianceLevel>
           <XaddSerialVersionUID>true</XaddSerialVersionUID>
           <showWeaveInfo>true</showWeaveInfo>
           <aspectLibraries>
@@ -230,12 +231,12 @@
           <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjrt</artifactId>
-            <version>1.9.22.1</version>
+            <version>${aspectj-version}</version>
           </dependency>
           <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjtools</artifactId>
-            <version>1.9.22.1</version>
+            <version>${aspectj-version}</version>
           </dependency>
         </dependencies>
       </plugin>

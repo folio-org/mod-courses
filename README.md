@@ -13,7 +13,7 @@ See [overview](ramls/overview.md) for more information.
 
 ## Prerequisites
 
-* Java 21 JDK
+* Java 25 JDK
 * Maven 3.8
 
 ## Additional information
