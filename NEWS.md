@@ -1,4 +1,5 @@
 ## 1.4.13 In Progress
+* Update Java from 21 to 25 ([MODCR-152](https://folio-org.atlassian.net/browse/MODCR-152))
 * Add DeployConfig.json ([ADR-0013 Configuration Management](https://folio-org.atlassian.net/wiki/spaces/TC/pages/1999702996))
 * Add support for 11.0 item-storage interface ([MODCR-139](https://folio-org.atlassian.net/browse/MODCR-139))
 * Update RMB to version 36.0.2
