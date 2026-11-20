@@ -1,9 +1,13 @@
-## 1.4.13 In Progress
+## 1.4.14 2026-11-20
 * Update Java from 21 to 25 ([MODCR-152](https://folio-org.atlassian.net/browse/MODCR-152))
 * Add DeployConfig.json ([ADR-0013 Configuration Management](https://folio-org.atlassian.net/wiki/spaces/TC/pages/1999702996))
 * Add support for 11.0 item-storage interface ([MODCR-139](https://folio-org.atlassian.net/browse/MODCR-139))
 * Update RMB to version 36.0.2
 * Update Vertx to 5.2.3
+
+## 1.4.13 2025-12-30
+* Upgrade RMB to version 35.3.1
+* Upgrade Vertx to 4.5.22
 
 ## 1.4.12 2025-04-23
 * Update Java from 17 to 21 ([MODCR-134](https://folio-org.atlassian.net/browse/MODCR-134))
