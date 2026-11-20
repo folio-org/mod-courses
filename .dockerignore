@@ -1,3 +1,4 @@
 # Only the fat jar file is needed for the Docker container
 *
 !target/*-fat.jar
+!docker/run-java.sh
