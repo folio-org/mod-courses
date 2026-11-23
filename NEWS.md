@@ -1,3 +1,6 @@
+## 1.4.15 In Progress
+* Revert Java from 25 to 21
+
 ## 1.4.14 2026-11-20
 * Update Java from 21 to 25 ([MODCR-152](https://folio-org.atlassian.net/browse/MODCR-152))
 * Add DeployConfig.json ([ADR-0013 Configuration Management](https://folio-org.atlassian.net/wiki/spaces/TC/pages/1999702996))
